@@ -33,6 +33,9 @@ res_z = min(res_wave, res_device);
 Nz = ceil(length_z / res_z);
 res_z = length_z / Nz;
 
+z_array_Ey = res_z .* (0 : (Nz-1));
+z_array_Hx = z_array_Ey + 0.5 .* res_z;
+
 % compute the source pulse
 tau = 0.5 / max_freq;
 delay_time = 6 * tau;
@@ -67,10 +70,9 @@ t_array = Dt * (1 : n_steps);
 e_source = exp(-((t_array - delay_time) ./ tau).^2);
 pos_source = round(0.4 * Nz);
 
-
-
-% initial image
-fig = figure;
+movie_name = '1D_FDTD_Example2';
+vidObj = VideoWriter(movie_name, 'MPEG-4');
+open(vidObj);
 
 % update the electric and magnetic field
 for n = 1 : n_steps
@@ -84,29 +86,43 @@ for n = 1 : n_steps
        Hx(nz) = Hx(nz) + m_Hx(nz) .* (Ey(nz+1) - Ey(nz)) ./ res_z;
     end
     % handle perfect boundary
-    Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
+    %Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
+    Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;
     
     % record before E
     E2 = E1;
     E1 = Ey(Nz);
     
     % handle perfect boundary
-    Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
+    %Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
+    Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - 0) ./ res_z;
     % update E <- H
     for nz = 2 : Nz
        Ey(nz) = Ey(nz) + m_Ey(nz) .* (Hx(nz) - Hx(nz-1)) ./ res_z;
     end
     
     % inject E += source
-    Ey(pos_source) = Ey(pos_source) + source(n);
+    Ey(pos_source) = Ey(pos_source) + e_source(n);
     
-    if mod(n, 10) == 1
-        cla;
-        plot(1:Nz, Ey, '-b');
+    if mod(n, 50) == 1
+        % save the frame to the movie
+        clf;
+        
+        plot(z_array_Ey, Ey, '-b', 'LineWidth', 3);
         hold on;
-        plot(1:Nz, Hx, '-r');
-        axis([0, Nz, -2, 2]);
-        hold off;
-        pause(0.02);
+        plot(z_array_Hx, Hx, '-r', 'LineWidth', 2);
+        axis([0, length_z, -2, 2]);
+        legend('E_y', 'H_x');
+        xlabel('position (m)');
+        ylabel('Intensity (V/m)');
+        t = Dt * n;
+        title_str = sprintf('1D FDTD Example, t = %.3e s', t);
+        title(title_str);
+        
+        F = getframe(gcf);
+        writeVideo(vidObj, F);
+        
     end
 end
+
+close(vidObj);
