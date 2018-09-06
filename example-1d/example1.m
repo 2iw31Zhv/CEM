@@ -11,8 +11,6 @@ clear all;
 
 % physical constant
 c0 = 299792458; % m/s
-mu = 1; % H/m
-epsilon = 1; % F/m
 
 % initalize physical domain
 length_z = 40.0; % m
@@ -62,22 +60,36 @@ E2 = 0;
 H1 = 0;
 H2 = 0;
 
+% set the divice
+epsilon = ones(Nz, 1);
+mu = ones(Nz, 1);
+
+device_0 = 15.0;
+device_1 = 25.0;
+n_divice_0 = round(device_0 ./ res_z);
+n_divice_1 = round(device_1 ./ res_z);
+
+epsilon_device = 6.0;
+mu_device = 2.0;
+
+epsilon(n_divice_0:n_divice_1) = epsilon_device * epsilon(n_divice_0:n_divice_1); 
+mu(n_divice_0:n_divice_1) = mu_device * mu(n_divice_0:n_divice_1);
 
 % initialize update coefficients
-m_Ey = c0 .* Dt ./ epsilon * ones(Nz, 1);
-m_Hx = c0 .* Dt ./ mu * ones(Nz, 1);
+m_Ey = c0 .* Dt ./ epsilon;
+m_Hx = c0 .* Dt ./ mu;
 
 % evaluate source
 t_array = Dt * (1 : n_steps);
 e_source = exp(-((t_array - delay_time) ./ tau).^2);
-pos_source = 10;
+pos_source = 2;
 
 % compute source correction term
 e_correction = e_source;
 n_source = 1.0;
 t_shift = 0.5 * Dt - n_source * res_z / 2.0 / c0;
-h_correction = -sqrt(epsilon / mu) ...
-    * exp(-((t_array - delay_time + t_shift) ./ tau).^2);
+h_correction = -sqrt(epsilon ./ mu) ...
+    .* exp(-((t_array - delay_time + t_shift) ./ tau).^2);
 
 % initialize movie recorder
 movie_name = '1D_FDTD_Example2';
