@@ -16,12 +16,14 @@ epsilon = 1; % F/m
 
 % initalize physical domain
 length_z = 40.0; % m
+max_freq = 5e7; % Hz
+
+
 
 
 % compute the resolution of the grid
 % wavelength part
-N_wave = 20; 
-max_freq = 5e7; % Hz
+N_wave = 20;
 n_max = 1.0;
 min_wavelen = c0 ./ max_freq ./ n_max;
 res_wave = min_wavelen ./ N_wave;
@@ -71,7 +73,7 @@ m_Hx = c0 .* Dt ./ mu * ones(Nz, 1);
 % evaluate source
 t_array = Dt * (1 : n_steps);
 e_source = exp(-((t_array - delay_time) ./ tau).^2);
-pos_source = round(0.4 * Nz);
+pos_source = 10;
 
 % compute source correction term
 e_correction = e_source;
@@ -85,6 +87,18 @@ movie_name = '1D_FDTD_Example2';
 delete(strcat(movie_name, '.mp4'));
 vidObj = VideoWriter(movie_name, 'MPEG-4');
 open(vidObj);
+
+
+% initialize freq domain
+n_freq = 1000;
+freq_array = linspace(0, max_freq, n_freq);
+freq_kernel = exp(-1i * 2 * pi * freq_array * Dt);
+REF = zeros(n_freq, 1);
+TRN = zeros(n_freq, 1);
+SRC = zeros(n_freq, 1);
+
+REF_ratio = zeros(n_freq, 1);
+TRN_ratio = zeros(n_freq, 1);
 
 % update the electric and magnetic field
 for n = 1 : n_steps
@@ -103,7 +117,7 @@ for n = 1 : n_steps
         -  m_Hx(pos_source - 1) .* e_correction(n) ./ res_z;
     
     % handle perfect boundary
-    Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
+     Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
     % or
     % pure conductor boundary
     % Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;
@@ -113,7 +127,7 @@ for n = 1 : n_steps
     E1 = Ey(Nz);
     
     % handle perfect boundary
-    Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
+      Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
     % or
     % pure conductor boundary
     % Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - 0) ./ res_z;
@@ -127,10 +141,21 @@ for n = 1 : n_steps
     Ey(pos_source) = Ey(pos_source) - m_Ey(pos_source)...
         * h_correction(n) ./ res_z;
     
+    % record T and R in freq domain
+    for nf = 1 : n_freq
+        REF(nf) = REF(nf) + freq_kernel(nf).^n .* Ey(1);
+        TRN(nf) = TRN(nf) + freq_kernel(nf).^n .* Ey(Nz);
+        SRC(nf) = SRC(nf) + freq_kernel(nf).^n .* Ey(pos_source);
+    end
+    
+    REF_ratio = abs(REF ./ SRC).^2;
+    TRN_ratio = abs(TRN ./ SRC).^2;
+    
     if mod(n, 50) == 1
         % save the frame to the movie
         clf;
         
+        subplot(2, 1, 1);
         plot(z_array_Ey, Ey, '-b', 'LineWidth', 3);
         hold on;
         plot(z_array_Hx, Hx, '-r', 'LineWidth', 2);
@@ -141,6 +166,15 @@ for n = 1 : n_steps
         t = Dt * n;
         title_str = sprintf('1D FDTD Example, t = %.3e s', t);
         title(title_str);
+        
+        subplot(2, 1, 2);
+        plot(freq_array, REF_ratio, '-r', 'LineWidth', 4);
+        hold on;
+        plot(freq_array, TRN_ratio, '-g', 'LineWidth', 3);
+        hold on;
+        plot(freq_array, REF_ratio + TRN_ratio, '-k', 'LineWidth', 2);
+        legend('Reflectance', 'Transmittance', 'Sum');
+        xlabel('frequency (Hz)');
         
         F = getframe(gcf);
         writeVideo(vidObj, F);
