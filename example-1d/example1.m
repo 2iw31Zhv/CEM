@@ -6,6 +6,9 @@
 % Units: GI
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+close all;
+clear all;
+
 % physical constant
 c0 = 299792458; % m/s
 mu = 1; % H/m
@@ -70,7 +73,16 @@ t_array = Dt * (1 : n_steps);
 e_source = exp(-((t_array - delay_time) ./ tau).^2);
 pos_source = round(0.4 * Nz);
 
+% compute source correction term
+e_correction = e_source;
+n_source = 1.0;
+t_shift = 0.5 * Dt - n_source * res_z / 2.0 / c0;
+h_correction = -sqrt(epsilon / mu) ...
+    * exp(-((t_array - delay_time + t_shift) ./ tau).^2);
+
+% initialize movie recorder
 movie_name = '1D_FDTD_Example2';
+delete(strcat(movie_name, '.mp4'));
 vidObj = VideoWriter(movie_name, 'MPEG-4');
 open(vidObj);
 
@@ -85,24 +97,35 @@ for n = 1 : n_steps
     for nz = 1 : (Nz-1)
        Hx(nz) = Hx(nz) + m_Hx(nz) .* (Ey(nz+1) - Ey(nz)) ./ res_z;
     end
+    
+    % H source correction
+    Hx(pos_source - 1) = Hx(pos_source - 1)...
+        -  m_Hx(pos_source - 1) .* e_correction(n) ./ res_z;
+    
     % handle perfect boundary
-    %Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
-    Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;
+    Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
+    % or
+    % pure conductor boundary
+    % Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;
     
     % record before E
     E2 = E1;
     E1 = Ey(Nz);
     
     % handle perfect boundary
-    %Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
-    Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - 0) ./ res_z;
+    Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - H2) ./ res_z;
+    % or
+    % pure conductor boundary
+    % Ey(1) = Ey(1) + m_Ey(1) .* (Hx(1) - 0) ./ res_z;
+    
     % update E <- H
     for nz = 2 : Nz
        Ey(nz) = Ey(nz) + m_Ey(nz) .* (Hx(nz) - Hx(nz-1)) ./ res_z;
     end
     
-    % inject E += source
-    Ey(pos_source) = Ey(pos_source) + e_source(n);
+    % E source correction
+    Ey(pos_source) = Ey(pos_source) - m_Ey(pos_source)...
+        * h_correction(n) ./ res_z;
     
     if mod(n, 50) == 1
         % save the frame to the movie
