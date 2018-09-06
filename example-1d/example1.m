@@ -18,9 +18,6 @@ epsilon = 1; % F/m
 length_z = 40.0; % m
 max_freq = 5e7; % Hz
 
-
-
-
 % compute the resolution of the grid
 % wavelength part
 N_wave = 20;
@@ -173,6 +170,7 @@ for n = 1 : n_steps
         plot(freq_array, TRN_ratio, '-g', 'LineWidth', 3);
         hold on;
         plot(freq_array, REF_ratio + TRN_ratio, '-k', 'LineWidth', 2);
+        axis([0, max_freq, 0, 1.2]);
         legend('Reflectance', 'Transmittance', 'Sum');
         xlabel('frequency (Hz)');
         
