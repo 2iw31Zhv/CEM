@@ -82,13 +82,13 @@ m_Hx = c0 .* Dt ./ mu;
 % evaluate source
 t_array = Dt * (1 : n_steps);
 e_source = exp(-((t_array - delay_time) ./ tau).^2);
-pos_source = 2;
+pos_source = 100;
 
 % compute source correction term
 e_correction = e_source;
 n_source = 1.0;
 t_shift = 0.5 * Dt - n_source * res_z / 2.0 / c0;
-h_correction = -sqrt(epsilon ./ mu) ...
+h_correction = - sqrt(epsilon(pos_source) ./ mu(pos_source)) ...
     .* exp(-((t_array - delay_time + t_shift) ./ tau).^2);
 
 % initialize movie recorder
@@ -121,15 +121,15 @@ for n = 1 : n_steps
        Hx(nz) = Hx(nz) + m_Hx(nz) .* (Ey(nz+1) - Ey(nz)) ./ res_z;
     end
     
-    % H source correction
-    Hx(pos_source - 1) = Hx(pos_source - 1)...
-        -  m_Hx(pos_source - 1) .* e_correction(n) ./ res_z;
-    
     % handle perfect boundary
-     Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
+      Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (E2 - Ey(Nz)) ./ res_z;
     % or
     % pure conductor boundary
-    % Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;
+    % Hx(Nz) = Hx(Nz) + m_Hx(Nz) .* (0 - Ey(Nz)) ./ res_z;    
+    
+    % H source correction
+      Hx(pos_source - 1) = Hx(pos_source - 1)...
+        -  m_Hx(pos_source - 1) .* e_correction(n) ./ res_z;
     
     % record before E
     E2 = E1;
@@ -145,16 +145,16 @@ for n = 1 : n_steps
     for nz = 2 : Nz
        Ey(nz) = Ey(nz) + m_Ey(nz) .* (Hx(nz) - Hx(nz-1)) ./ res_z;
     end
-    
+
     % E source correction
     Ey(pos_source) = Ey(pos_source) - m_Ey(pos_source)...
         * h_correction(n) ./ res_z;
     
     % record T and R in freq domain
     for nf = 1 : n_freq
-        REF(nf) = REF(nf) + freq_kernel(nf).^n .* Ey(1);
-        TRN(nf) = TRN(nf) + freq_kernel(nf).^n .* Ey(Nz);
-        SRC(nf) = SRC(nf) + freq_kernel(nf).^n .* Ey(pos_source);
+        REF(nf) = REF(nf) + Dt * (freq_kernel(nf).^n) .* Ey(1);
+        TRN(nf) = TRN(nf) + Dt * (freq_kernel(nf).^n) .* Ey(Nz);
+        SRC(nf) = SRC(nf) + Dt * (freq_kernel(nf).^n) .* e_source(n);
     end
     
     REF_ratio = abs(REF ./ SRC).^2;
@@ -165,11 +165,17 @@ for n = 1 : n_steps
         clf;
         
         subplot(2, 1, 1);
+        device_x = [ device_0 device_1 device_1 device_0 device_0 ];
+        device_y = [ -2 -2 2 2 -2 ];
+        c = [0.6 0.6 0.6];
+        fill(device_x,device_y,c);
+        hold on;
+        
         plot(z_array_Ey, Ey, '-b', 'LineWidth', 3);
         hold on;
         plot(z_array_Hx, Hx, '-r', 'LineWidth', 2);
         axis([0, length_z, -2, 2]);
-        legend('E_y', 'H_x');
+        legend('Device', 'E_y', 'H_x');
         xlabel('position (m)');
         ylabel('Intensity (V/m)');
         t = Dt * n;
