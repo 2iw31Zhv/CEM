@@ -4,15 +4,13 @@
 % Reference: http://emlab.utep.edu/ee5390fdtd.htm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-close all;
-clear all;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 1e-6; % s
+t_total = 10.0; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -73,18 +71,13 @@ CurlHz = zeros(Nx, Ny);
 % set source
 tau = 0.5 ./ freq_max;
 delay_time = 6.0 .* tau;
-Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
+Generator = @(t)exp(-((t_array - delay_time) ./ tau).^2);
 
 source_x = 2.5;
 source_y = 2.5;
 
 Ns_x = round((source_x - x0) ./ res_x);
 Ns_y = round((source_y - y0) ./ res_y);
-
-
-% for visualization
-x_array = linspace(x0, x1, Nx);
-y_array = linspace(y0, y1, Ny);
 
 % HDE Algorithm main loop
 for T = 1 : Nt
@@ -133,15 +126,9 @@ for T = 1 : Nt
     Dz = Dz + c0 .* Dt .* CurlHz;
     
     % simple soft source
-    t_now = Dt .* T;
-    Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + Generator(t_now);
-    
+    t_
+    Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + Generator(
     % Ez <- Dz
-    Ez = Dz ./ Eps_zz;
     
-    % visualize the results
-    if mod(T, 20) == 0
-        imagesc(x_array, y_array, Ez');
-        pause(0.1);
-    end
+    
 end
