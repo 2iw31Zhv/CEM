@@ -29,7 +29,7 @@ devlen_min = 10.0;
 grid_per_devlen = 4;
 
 % EM paramters
-freq_max = 5e7; % Hz
+freq_max = 5e8; % Hz
 grid_per_wavelen = 20;
 
 
@@ -52,6 +52,7 @@ res_y = (y1 - y0) ./ Ny;
 % evaluate time step
 res_min = min(res_x, res_y);
 Dt = refractive_index_bc .* res_min ./ 2.0 ./ c0;
+
 Nt = ceil( t_total ./ Dt);
 Dt = t_total ./ Nt;
 
@@ -113,18 +114,18 @@ for T = 1 : Nt
     
     % evaluate Curl Hz
     CurlHz(1, 1) = (Hy(1, 1) - 0.0) ./ res_x...
-                + (Hx(1, 1) - 0.0) ./ res_y;
+                - (Hx(1, 1) - 0.0) ./ res_y;
     for ny = 2 : Ny
         CurlHz(1, ny) = (Hy(1, ny) - 0.0) ./ res_x...
-                + (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
+                - (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
     end
     
     for nx = 2 : Nx
         CurlHz(nx, 1) = (Hy(nx, 1) - Hy(nx-1, 1)) ./ res_x...
-                + (Hx(nx, 1) - 0.0) ./ res_y;
+                - (Hx(nx, 1) - 0.0) ./ res_y;
         for ny = 2 : Ny
             CurlHz(nx, ny) = (Hy(nx, ny) - Hy(nx-1, ny)) ./ res_x...
-                + (Hx(nx, ny) - Hx(nx, ny-1)) ./ res_y;
+                - (Hx(nx, ny) - Hx(nx, ny-1)) ./ res_y;
         end
     end
     
@@ -140,8 +141,28 @@ for T = 1 : Nt
     Ez = Dz ./ Eps_zz;
     
     % visualize the results
-    if mod(T, 20) == 0
+    if mod(T, 1) == 0
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
+        CMAP = zeros(256,3);
+        c1 = [0 0 1]; %blue
+        c2 = [1 1 1]; %white
+        c3 = [1 0 0]; %red
+        for nc = 1 : 128
+            f = (nc - 1)/128;
+            c = (1 - sqrt(f))*c1 + sqrt(f)*c2;
+            CMAP(nc,:) = c;
+            c = (1 - f^2)*c2 + f^2*c3;
+            CMAP(128+nc,:) = c;
+        end
+        colormap(CMAP);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         imagesc(x_array, y_array, Ez');
-        pause(0.1);
+        t = Dt .*T;
+        title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
+        title(title_str);
+        pause(0.01);
     end
 end
