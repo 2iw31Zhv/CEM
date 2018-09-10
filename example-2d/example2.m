@@ -12,7 +12,7 @@ clear all;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 1e-6; % s
+t_total = 1e-7; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -76,6 +76,8 @@ tau = 0.5 ./ freq_max;
 delay_time = 6.0 .* tau;
 Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
 
+t_array = Dt * (1 : Nt);
+source_array = Generator(t_array);
 source_x = 2.5;
 source_y = 2.5;
 
@@ -87,9 +89,11 @@ Ns_y = round((source_y - y0) ./ res_y);
 x_array = linspace(x0, x1, Nx);
 y_array = linspace(y0, y1, Ny);
 
+Ez_recorder = zeros(Nt, 1);
+
 % HDE Algorithm main loop
 for T = 1 : Nt
-    
+   
     % evaluate Curl Ex
     for nx = 1 : Nx
         for ny = 1 : (Ny - 1)
@@ -135,14 +139,15 @@ for T = 1 : Nt
     
     % simple soft source
     t_now = Dt .* T;
-    Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + Generator(t_now);
+    Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + source_array(T);
     
     % Ez <- Dz
     Ez = Dz ./ Eps_zz;
     
+    Ez_recorder(T) = Ez(Ns_x + 10, Ns_y + 10);
+    
     % visualize the results
     if mod(T, 1) == 0
-        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
         CMAP = zeros(256,3);
@@ -157,9 +162,16 @@ for T = 1 : Nt
             CMAP(128+nc,:) = c;
         end
         colormap(CMAP);
+        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         imagesc(x_array, y_array, Ez');
+        
+        Ez_min = min(min(Ez));
+        Ez_max = max(max(Ez));
+        Ez_maxabs = max(abs(Ez_min), abs(Ez_max));
+        caxis([-Ez_maxabs, Ez_maxabs]);
+                
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
         title(title_str);
