@@ -16,7 +16,7 @@ t_total = 1e-7; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
-y1 = 10.0; % m
+y1 = 20.0; % m
 
 % physical constant
 c0 = 299792458; % m/s
@@ -84,15 +84,15 @@ N_layers_y0 = 20;
 N_layers_y1 = 20;
 
 Sigx2 = zeros(Nx2, Ny2);
-for nx = 1 : (2 * N_layers_x0)
-    pos_x = 2 * N_layers_x0 - nx + 1;
-    Sigx2(pos_x, :) = (0.5 * epsilon0 / Dt) * (nx / 2.0 / N_layers_x0)^3;
-end
-
-for nx = 1 : (2 * N_layers_x1)
-    pos_x = Nx2 - 2 * N_layers_x1 + nx;
-    Sigx2(pos_x, :) = (0.5 * epsilon0 / Dt) * (nx / 2.0 / N_layers_x1)^3;
-end
+% for nx = 1 : (2 * N_layers_x0)
+%     pos_x = 2 * N_layers_x0 - nx + 1;
+%     Sigx2(pos_x, :) = (0.5 * epsilon0 / Dt) * (nx / 2.0 / N_layers_x0)^3;
+% end
+% 
+% for nx = 1 : (2 * N_layers_x1)
+%     pos_x = Nx2 - 2 * N_layers_x1 + nx;
+%     Sigx2(pos_x, :) = (0.5 * epsilon0 / Dt) * (nx / 2.0 / N_layers_x1)^3;
+% end
 
 Sigy2 = zeros(Nx2, Ny2);
 for ny = 1 : (2 * N_layers_y0)
@@ -163,7 +163,7 @@ Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
 
 t_array = Dt * (1 : Nt);
 source_array = Generator(t_array);
-source_x = 2.5;
+source_x = 5;
 source_y = 2.5;
 
 Ns_x = round((source_x - x0) ./ res_x);
@@ -196,7 +196,8 @@ for T = 1 : Nt
             CurlEy(nx, ny) = -(Ez(nx+1, ny) - Ez(nx, ny)) ./ res_x;
         end
         % handle boundary condition
-        CurlEy(Nx, ny) = -(0.0 - Ez(Nx, ny)) ./ res_x;
+        % CurlEy(Nx, ny) = -(0.0 - Ez(Nx, ny)) ./ res_x;
+        CurlEy(Nx, ny) = -(Ez(1, ny) - Ez(nx, ny)) ./ res_x;
     end
     
     ICurlEy = ICurlEy + CurlEy;
@@ -208,10 +209,17 @@ for T = 1 : Nt
     Hy = mHy1 .* Hy + mHy2 .* CurlEy + mHy3 .* ICurlEy;
     
     % evaluate Curl Hz
-    CurlHz(1, 1) = (Hy(1, 1) - 0.0) ./ res_x...
+%     CurlHz(1, 1) = (Hy(1, 1) - 0.0) ./ res_x...
+%                 - (Hx(1, 1) - 0.0) ./ res_y;
+%     for ny = 2 : Ny
+%         CurlHz(1, ny) = (Hy(1, ny) - 0.0) ./ res_x...
+%                 - (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
+%     end
+    
+    CurlHz(1, 1) = (Hy(1, 1) - Hy(Nx, 1)) ./ res_x...
                 - (Hx(1, 1) - 0.0) ./ res_y;
     for ny = 2 : Ny
-        CurlHz(1, ny) = (Hy(1, ny) - 0.0) ./ res_x...
+        CurlHz(1, ny) = (Hy(1, ny) - Hy(Nx, ny)) ./ res_x...
                 - (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
     end
     
