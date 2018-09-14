@@ -258,9 +258,13 @@ for T = 1 : Nt
         colormap(CMAP);
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        shift = 8;
-        imagesc(x_array, y_array, field_log_normalize(Ez, shift)');
-        caxis([-shift, shift]);
+        
+        imagesc(x_array, y_array, field_log_normalize(Ez, 5)');
+        
+        %Ez_min = min(min(Ez));
+        %Ez_max = max(max(Ez));
+        %Ez_maxabs = max(abs(Ez_min), abs(Ez_max));
+        caxis([-1, 1]);
         axis equal tight;
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
