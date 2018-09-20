@@ -12,7 +12,7 @@ clear variables;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 1e-7; % s
+t_total = 5e-7; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -25,6 +25,7 @@ epsilon0 = 8.854188e-12; % F/m
 % device parameters
 refractive_index_max = 1.0;
 refractive_index_bc = 1.0;
+refractive_index_source = 1.0;
 
 devlen_min = 10.0;
 grid_per_devlen = 4;
@@ -65,7 +66,26 @@ Eps2 = ones(Nx2, Ny2);
 Mu2 = ones(Nx2, Ny2);
 
 % set device parameters here
-% TODO
+Eps_device = 2.0;
+Mu_device = 6.0;
+device_center_x = 5.0;
+device_center_y = 10.0;
+device_radius = 3.0;
+
+for nx = 1 : Nx2
+    for ny = 1 : Ny2
+        real_x = nx * res_x * 0.5;
+        real_y = ny * res_y * 0.5;
+        
+        dist = sqrt((real_x - device_center_x)^2 ...
+            + (real_y - device_center_y)^2);
+        if dist <= device_radius
+            Eps2(nx, ny) = Eps_device;
+            Mu2(nx, ny) = Mu_device;
+        end
+    end
+end
+
 
 % extract the corresponding elements
 Eps_zz = Eps2(1:2:Nx2, 1:2:Ny2);
@@ -164,11 +184,16 @@ Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
 t_array = Dt * (1 : Nt);
 source_array = Generator(t_array);
 source_x = 5;
-source_y = 2.5;
+source_y = 1.0;
 
 Ns_x = round((source_x - x0) ./ res_x);
 Ns_y = round((source_y - y0) ./ res_y);
 
+
+e_source = source_array;
+h_source = sqrt( Eps_zz(Ns_x, Ns_y) / Mu_xx(Ns_x, Ns_y-1)) ...
+    * Generator(t_array + 0.5 * Dt...
+    + refractive_index_source * res_y / 2.0 / c0);
 
 % for visualization
 x_array = linspace(x0, x1, Nx);
@@ -186,6 +211,11 @@ for T = 1 : Nt
         end
         % handle boundary condition
         CurlEx(nx, Ny) = (0.0 - Ez(nx, Ny)) ./ res_y;
+    end
+    
+    % TF/SF for Ez
+    for nx = 1 : Nx
+        CurlEx(nx, Ns_y-1) = CurlEx(nx, Ns_y-1) - e_source(T) / res_y;
     end
     
     ICurlEx = ICurlEx + CurlEx;
@@ -232,6 +262,10 @@ for T = 1 : Nt
         end
     end
     
+    % TF/SF for Hx
+    for nx = 1 : Nx
+        CurlHz(nx, Ns_y) = CurlHz(nx, Ns_y) + h_source(T) / res_y;
+    end
     
     % Dz <- Curl Hz
     % Dz = Dz + c0 .* Dt .* CurlHz;
@@ -241,7 +275,7 @@ for T = 1 : Nt
     
     % simple soft source
     % t_now = Dt .* T;
-    Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + source_array(T);
+    % Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + source_array(T);
     
     % Ez <- Dz
     Ez = Dz ./ Eps_zz;
@@ -249,7 +283,19 @@ for T = 1 : Nt
     % Ez_recorder(T) = Ez(Ns_x + 10, Ns_y + 10);
     
     % visualize the results
-    if mod(T, 1) == 0
+    if mod(T, 10) == 0
+        
+        % set device drawing
+        phi = linspace(0, 2*pi, 100);
+        profile_x = device_radius * cos(phi) + device_center_x;
+        profile_y = device_radius * sin(phi) + device_center_y;
+        device_color = [0.7 0.7 0.7];
+        
+        subplot(1, 3, 1);
+        fill(profile_x, profile_y, device_color);
+        hold on;
+        
+        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
         CMAP = zeros(256,3);
@@ -270,9 +316,36 @@ for T = 1 : Nt
         imagesc(x_array, y_array, field_log_normalize(Ez, shift)');
         caxis([-shift, shift]);
         axis equal tight;
+        title('Ez');
+        alpha(0.3);
+        
+        subplot(1, 3, 2);
+        fill(profile_x, profile_y, device_color);
+        hold on;
+        
+        shift = 8;
+        imagesc(x_array, y_array, field_log_normalize(Hx, shift)');
+        caxis([-shift, shift]);
+        axis equal tight;
+        title('Hx');
+        alpha(0.3);
+        
+        
+        subplot(1, 3, 3);
+        fill(profile_x, profile_y, device_color);
+        hold on;
+        
+        shift = 8;
+        imagesc(x_array, y_array, field_log_normalize(Hy, shift)');
+        caxis([-shift, shift]);
+        axis equal tight;
+        title('Hy');
+        alpha(0.3);
+        
+        
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
-        title(title_str);
-        pause(0.01);
+        subtitle(title_str);            
+        pause(0.001);
     end
 end
