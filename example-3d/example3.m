@@ -1,5 +1,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 3D FDTD Example
+% =========================================================================
+% Description:
+% Assume periodic boundary condition for both x and y directions
+% and perfect match layer along the z direction
+% =========================================================================
 % Author: Ziwei Zhu
 % Reference: http://emlab.utep.edu/ee5390fdtd.htm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,12 +21,12 @@ c0 = 299792458; % m/s
 epsilon0 = 8.854188e-12; % F/m
 
 % simulation size
-x0 = 0.0;
-x1 = 10.0;
-y0 = 0.0;
-y1 = 10.0;
-z0 = 0.0;
-z1 = 40.0;
+x0 = -5.0;
+x1 = 5.0;
+y0 = -5.0;
+y1 = 5.0;
+z0 = -20.0;
+z1 = 20.0;
 
 t_total = 2e-7;
 
@@ -74,8 +79,126 @@ Dt = t_total ./ Nt;
 % Large Scale Parameter Settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% 2x grid technique
+Nx2 = 2 * Nx;
+Ny2 = 2 * Ny;
+Nz2 = 2 * Nz;
+
+Eps2 = ones(Nx2, Ny2, Nz2);
+Mu2 = ones(Nx2, Ny2, Nz2);
+
+% TODO 
+% set device epsilon and mu here!
+
+% extract the corresponding elements
+Eps_xx = Eps2(2:2:Nx2, 1:2:Ny2, 1:2:Nz2);
+Eps_yy = Eps2(1:2:Nx2, 2:2:Ny2, 1:2:Nz2);
+Eps_zz = Eps2(1:2:Nx2, 1:2:Ny2, 2:2:Nz2);
+
+Mu_xx = Mu2(1:2:Nx2, 2:2:Ny2, 2:2:Nz2);
+Mu_yy = Mu2(2:2:Nx2, 1:2:Ny2, 2:2:Nz2);
+Mu_zz = Mu2(2:2:Nx2, 2:2:Ny2, 1:2:Nz2);
+
+
+% set PML parameters
+N_layers_z0 = 20;
+N_layers_z1 = 20;
+
+Sigz2 = zeros(Nx2, Ny2, Nz2);
+for nz = 1 : (2 * N_layers_z0)
+    pos_z = 2 * N_layers_z0 - nz + 1;
+    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
+end
+for nz = 1 : (2 * N_layers_z1)
+    pos_z = Nz2 - 2 * N_layers_z1 + nz;
+    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
+end
+
+% x_array = x0 + 0.5 * res_x * (1 : Nx2);
+% y_array = y0 + 0.5 * res_y * (1 : Ny2);
+% z_array = z0 + 0.5 * res_z * (1 : Nz2);
+% [Y, X, Z] = meshgrid(y_array, x_array, z_array);
+% slice(Y, X, Z, field_log_normalize(Sigz2, 10), 0, 0, 0);
+
+Sigz_Hx = Sigz2(1:2:Nx2, 2:2:Ny2, 2:2:Nz2);
+Sigz_Hy = Sigz2(2:2:Nx2, 1:2:Ny2, 2:2:Nz2);
+Sigz_Hz = Sigz2(2:2:Nx2, 2:2:Ny2, 1:2:Nz2);
+
+Sigz_Dx = Sigz2(2:2:Nx2, 1:2:Ny2, 1:2:Nz2);
+Sigz_Dy = Sigz2(1:2:Nx2, 2:2:Ny2, 1:2:Nz2);
+Sigz_Dz = Sigz2(1:2:Nx2, 1:2:Ny2, 2:2:Nz2);
+
+% evaluate update coeff
+mHx0 = 1.0 / Dt + Sigz_Hx ./ (2.0 * epsilon0);
+mHx1 = (1.0 / Dt - Sigz_Hx ./ (2.0 * epsilon0)) ./ mHx0;
+mHx2 = (- c0 ./ Mu_xx) ./ mHx0;
+
+mHy0 = 1.0 / Dt + Sigz_Hy ./ (2.0 * epsilon0);
+mHy1 = (1.0 / Dt - Sigz_Hy ./ (2.0 * epsilon0)) ./ mHy0;
+mHy2 = (-c0 ./ Mu_yy) ./ mHy0;
+
+mHz2 = - c0 * Dt ./ Mu_zz;
+mHz3 = - c0 * Dt * Dt / epsilon0 * Sigz_Hz ./ Mu_zz;
+
+mDx0 = 1.0 / Dt + Sigz_Dx ./ (2.0 * epsilon0);
+mDx1 = (1.0 / Dt - Sigz_Dx ./ (2.0 * epsilon0)) ./ mDx0;
+mDx2 = c0 ./ mDx0;
+
+mDy0 = 1.0 / Dt + Sigz_Dy ./ (2.0 * epsilon0);
+mDy1 = (1.0 / Dt - Sigz_Dy ./ (2.0 * epsilon0)) ./ mDy0;
+mDy2 = c0 ./ mDy0;
+
+mDz2 = c0 * Dt * ones(Nx, Ny, Nz);
+mDz3 = c0 * Dt * Dt / epsilon0 * Sigz_Dz;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Main HDE Algorithm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% initialize field, curl and integrator
+Hx = zeros(Nx, Ny, Nz);
+Hy = zeros(Nx, Ny, Nz);
+Hz = zeros(Nx, Ny, Nz);
+
+Dx = zeros(Nx, Ny, Nz);
+Dy = zeros(Nx, Ny, Nz);
+Dz = zeros(Nx, Ny, Nz);
+
+Ex = zeros(Nx, Ny, Nz);
+Ey = zeros(Nx, Ny, Nz);
+Ez = zeros(Nx, Ny, Nz);
+
+CurlEx = zeros(Nx, Ny, Nz);
+CurlEy = zeros(Nx, Ny, Nz);
+CurlEz = zeros(Nx, Ny, Nz);
+
+ICurlEz = zeros(Nx, Ny, Nz);
+
+CurlHx = zeros(Nx, Ny, Nz);
+CurlHy = zeros(Nx, Ny, Nz);
+CurlHz = zeros(Nx, Ny, Nz);
+
+ICurlHz = zeros(Nx, Ny, Nz);
+
+% main loop
+for T = 1 : Nt
+    % evaluate Curl Ex
+    
+    % evaluate Curl Ey
+    
+    % evaluate Curl Ez
+    
+    % evaluate Curl Hx
+    
+    % evaluate Curl Hy
+    
+    % evaluate Curl Hz
+    
+    % update Hx, Hy, Hz
+    
+    % update Dx, Dy, Dz
+    
+    % update Ex, Ey, Ez
+    
+end
+
 
