@@ -178,6 +178,23 @@ CurlHz = zeros(Nx, Ny, Nz);
 
 ICurlHz = zeros(Nx, Ny, Nz);
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% the colormap from http://emlab.utep.edu/ee5390fdtd.htm
+CMAP = zeros(256,3);
+c1 = [0 0 1]; %blue
+c2 = [1 1 1]; %white
+c3 = [1 0 0]; %red
+for nc = 1 : 128
+    f = (nc - 1)/128;
+    c = (1 - sqrt(f))*c1 + sqrt(f)*c2;
+    CMAP(nc,:) = c;
+    c = (1 - f^2)*c2 + f^2*c3;
+    CMAP(128+nc,:) = c;
+end
+colormap(CMAP);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
 % main loop
 for T = 1 : Nt
     % =====================================================================
@@ -228,10 +245,11 @@ for T = 1 : Nt
     Ez = Dz ./ Eps_zz;
     
     % visualize
-    if mod(T, 10) == 0
+    if mod(T, 20) == 0
         slice(Y, X, -Z, Ex, 0, 0, 0);
         axis equal tight off;
         shading interp;
+        grid on;
         pause(0.01);
     end
 end
