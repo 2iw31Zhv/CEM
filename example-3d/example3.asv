@@ -230,9 +230,7 @@ for T = 1 : Nt
     % visualize
     if mod(T, 10) == 0
         slice(Y, X, -Z, Ex, 0, 0, 0);
-        axis equal tight off;
-        shading interp;
-        pause(0.01);
+        pause(0.01
     end
 end
 
