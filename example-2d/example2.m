@@ -12,7 +12,7 @@ clear variables;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 5e-7; % s
+t_total = 2e-7; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -201,6 +201,12 @@ y_array = linspace(y0, y1, Ny);
 
 % Ez_recorder = zeros(Nt, 1);
 
+% initialize movie recorder
+movie_name = '2D_FDTD_Example';
+delete(strcat(movie_name, '.mp4'));
+vidObj = VideoWriter(movie_name, 'MPEG-4');
+open(vidObj);
+
 % HDE Algorithm main loop
 for T = 1 : Nt
    
@@ -345,7 +351,12 @@ for T = 1 : Nt
         
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
-        subtitle(title_str);            
-        pause(0.001);
+        subtitle(title_str);
+        
+        F = getframe(gcf);
+        writeVideo(vidObj, F);
+        % pause(0.001);
     end
 end
+
+close(vidObj);
