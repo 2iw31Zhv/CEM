@@ -25,8 +25,8 @@ x0 = -5.0;
 x1 = 5.0;
 y0 = -5.0;
 y1 = 5.0;
-z0 = -20.0;
-z1 = 20.0;
+z0 = -5.0;
+z1 = 5.0;
 
 t_total = 2e-6;
 
@@ -66,17 +66,17 @@ res_z = (z1 - z0) ./ Nz;
 
 res_min = min([res_x res_y res_z]);
 
-% evaluate time step
-Dt = 0.1 * refractive_index_bc * res_min / 2.0 / c0;
 
-% refine time step according to source
-tau = 0.5 / freq_max;
-res_source = 20;
-Dt = min(Dt, tau / res_source);
+% evaluate time step
+Dt = refractive_index_bc .* res_min ./ 2.0 ./ c0;
 
 % evaluate iter number
 Nt = ceil( t_total / Dt);
-Dt = t_total / Nt;
+Dt = t_total ./ Nt;
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Large Scale Parameter Settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -107,14 +107,14 @@ N_layers_z0 = 20;
 N_layers_z1 = 20;
 
 Sigz2 = zeros(Nx2, Ny2, Nz2);
-for nz = 1 : (2 * N_layers_z0)
-    pos_z = 2 * N_layers_z0 - nz + 1;
-    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
-end
-for nz = 1 : (2 * N_layers_z1)
-    pos_z = Nz2 - 2 * N_layers_z1 + nz;
-    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
-end
+% for nz = 1 : (2 * N_layers_z0)
+%     pos_z = 2 * N_layers_z0 - nz + 1;
+%     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
+% end
+% for nz = 1 : (2 * N_layers_z1)
+%     pos_z = Nz2 - 2 * N_layers_z1 + nz;
+%     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
+% end
 
 x_array = x0 + res_x * (1 : Nx);
 y_array = y0 + res_y * (1 : Ny);
@@ -181,21 +181,21 @@ CurlHz = zeros(Nx, Ny, Nz);
 ICurlHz = zeros(Nx, Ny, Nz);
 
 % set source
+tau = 0.5 / freq_max;
 delay_time = 6.0 * tau;
 Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
 
 t_array = Dt * (1 : Nt);
 e_source_array = Generator(t_array);
 h_source_array = Generator(t_array + 0.5 * Dt ...
-    + refractive_index_source * res_z / 2.0 / c0);
+    - refractive_index_source * res_z / 2.0 / c0);
 
 source_x = 0.0;
 source_y = 0.0;
-source_z = -10.0;
+source_z = 0.0;
 
-source_angle = 3.14 / 4;
-Px = cos(source_angle);
-Py = sin(source_angle);
+Px = 1.0;
+Py = 1.0;
 
 Ns_x = round((source_x - x0) ./ res_x);
 Ns_y = round((source_y - y0) ./ res_y);
@@ -225,7 +225,6 @@ for nc = 1 : 128
 end
 colormap(CMAP);
 
-record = zeros([Nt, 1]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
 % main loop
@@ -237,14 +236,14 @@ for T = 1 : Nt
     % evaluate Curl Ex
     CurlEx = (circshift(Ez, [0, -1, 0]) - Ez) ./ res_y...
         - (circshift(Ey, [0, 0, -1]) - Ey) ./ res_z;
-    CurlEx(:, :, Ns_z-1) = CurlEx(:, :, Ns_z-1)...
-        + Ey_source(T) / res_z;
+%     CurlEx(:, :, Ns_z-1) = CurlEx(:, :, Ns_z-1)...
+%         + Ey_source(T) / res_z;
     
     % evaluate Curl Ey
     CurlEy = (circshift(Ex, [0, 0, -1]) - Ex) ./ res_z...
         - (circshift(Ez, [-1, 0, 0]) - Ez) ./ res_x;
-    CurlEy(:, :, Ns_z-1) = CurlEy(:, :, Ns_z-1)...
-        - Ex_source(T) / res_z;
+%     CurlEy(:, :, Ns_z-1) = CurlEy(:, :, Ns_z-1)...
+%         - Ex_source(T) / res_z;
     
     % evaluate Curl Ez
     CurlEz = (circshift(Ey, [-1, 0, 0]) - Ey) ./ res_x...
@@ -255,14 +254,14 @@ for T = 1 : Nt
     % evaluate Curl Hx
     CurlHx = (Hz - circshift(Hz, [0, 1, 0])) ./ res_y...
         - (Hy - circshift(Hy, [0, 0, 1])) ./ res_z;
-    CurlHx(:, :, Ns_z) = CurlHx(:, :, Ns_z)...
-        + Hy_source(T) / res_z;
+%     CurlHx(:, :, Ns_z) = CurlHx(:, :, Ns_z)...
+%         + Hy_source(T) / res_z;
     
     % evaluate Curl Hy
     CurlHy = (Hx - circshift(Hx, [0, 0, 1])) ./ res_z...
         - (Hz - circshift(Hz, [1, 0, 0])) ./ res_x;
-    CurlHy(:, :, Ns_z) = CurlHy(:, :, Ns_z)...
-        - Hx_source(T) / res_z;
+%     CurlHy(:, :, Ns_z) = CurlHy(:, :, Ns_z)...
+%         - Hx_source(T) / res_z;
     
     % evaluate Curl Hz
     CurlHz = (Hy - circshift(Hy, [1, 0, 0])) ./ res_x...
@@ -280,10 +279,14 @@ for T = 1 : Nt
     Dy = mDy1 .* Dy + mDy2 .* CurlHy;
     Dz = Dz + (mDz2 - mDz3) .* CurlHz + mDz3 .* ICurlHz;
     
+    
     % update Ex, Ey, Ez
     Ex = Dx ./ Eps_xx;
     Ey = Dy ./ Eps_yy;
     Ez = Dz ./ Eps_zz;
+    
+    Ex(:, :, Ns_z) = Ex(:, :, Ns_z) + Ex_source(T);
+    Ey(:, :, Ns_z) = Ey(:, :, Ns_z) + Ey_source(T);
     
     % visualize
     if mod(T, 10) == 0
