@@ -261,6 +261,7 @@ Hy_source = Px * h_source_array / impedance_ref_y;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
+figure('units','normalized','outerposition',[0 0 1 1]);
 CMAP = zeros(256,3);
 c1 = [0 0 1]; %blue
 c2 = [1 1 1]; %white
@@ -346,29 +347,96 @@ for T = 1 : Nt
     
     % visualize
     if mod(T, 5) == 0
-        shift = 8;
-        slice(Y, X, -Z, field_log_normalize(Ex, shift), 5, 5, 0);
+        clf;
         
+        shift = 8;
+        
+        subplot(2, 3, 1);
+        slice(Y, X, -Z, field_log_normalize(Ex, shift), 5, 5, 0);
         caxis([-shift, shift]);
         axis equal tight off;
-        shading flat;
-        grid on;
-        
+        shading interp;
         hold on;
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
-        
         hold on;
         plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
         hold on;
         plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        title('Ex');
+         
+        subplot(2, 3, 2);
+        slice(Y, X, -Z, field_log_normalize(Ey, shift), 5, 5, 0);
+        caxis([-shift, shift]);
+        axis equal tight off;
+        shading interp;
+        hold on;
+        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        hold on;
+        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        hold on;
+        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);        
+        title('Ey');
         
-        t = Dt * T;
-        title_str = sprintf('3D FDTD Example (Ex), t = %.3e s', t);
-        title(title_str);
-        %alpha(0.6);
+        subplot(2, 3, 3);
+        slice(Y, X, -Z, field_log_normalize(Ez, shift), 5, 5, 0);
+        caxis([-shift, shift]);
+        axis equal tight off;
+        shading interp;
+        hold on;
+        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        hold on;
+        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        hold on;
+        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        title('Ez');
+        
+        subplot(2, 3, 4);
+        slice(Y, X, -Z, field_log_normalize(Hx, shift), 5, 5, 0);
+        caxis([-shift, shift]);
+        axis equal tight off;
+        shading interp;
+        hold on;
+        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        hold on;
+        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        hold on;
+        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        title('Hx');
+        
+        subplot(2, 3, 5);
+        slice(Y, X, -Z, field_log_normalize(Hy, shift), 5, 5, 0);
+        caxis([-shift, shift]);
+        axis equal tight off;
+        shading interp;
+        hold on;
+        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        hold on;
+        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        hold on;
+        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);        
+        title('Hy');
+        
+        subplot(2, 3, 6);
+        slice(Y, X, -Z, field_log_normalize(Hz, shift), 5, 5, 0);
+        caxis([-shift, shift]);
+        axis equal tight off;
+        shading interp;
+        hold on;
+        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        hold on;
+        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        hold on;
+        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        title('Hz');
+        
+        t = Dt .*T;
+        title_str = sprintf('3D FDTD Example, t = %.3e s', t);
+        subtitle(title_str);
         
         F = getframe(gcf);
         writeVideo(vidObj, F);
+        
+        
         % pause(0.001);
     end
 end
