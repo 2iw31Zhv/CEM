@@ -365,13 +365,6 @@ for T = 1 : Nt
         plot3([-5 5], [5, 5],...
             [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
         plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
@@ -391,13 +384,6 @@ for T = 1 : Nt
         hold on;
         plot3([-5 5], [5, 5],...
             [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
-        hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
         hold on;        
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
@@ -418,13 +404,6 @@ for T = 1 : Nt
         hold on;
         plot3([-5 5], [5, 5],...
             [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
-        hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
         hold on;        
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
@@ -445,13 +424,6 @@ for T = 1 : Nt
         hold on;
         plot3([-5 5], [5, 5],...
             [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
-        hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
         hold on;        
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
@@ -472,13 +444,6 @@ for T = 1 : Nt
         hold on;
         plot3([-5 5], [5, 5],...
             [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
-        hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
         hold on;        
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
@@ -493,20 +458,7 @@ for T = 1 : Nt
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
-        hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
-            '-k');
-        hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
+        
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
         plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
