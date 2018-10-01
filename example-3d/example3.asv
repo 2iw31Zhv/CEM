@@ -118,11 +118,11 @@ for nx = 1 : Nx2
     end
 end
 
-L = dev_x1 - dev_x0;
-W = dev_y1 - dev_y0;
-H = dev_z1 - dev_z0;
+L = rand(1);
+W = rand(1);
+H = rand(1);
 
-A = [dev_x0;dev_y0;dev_z0];
+A = rand(3,1);
 B = A + [L;0;0];
 C = B + [0;W;0];
 D = A + [0;W;0];
@@ -272,7 +272,7 @@ for nc = 1 : 128
     c = (1 - f^2)*c2 + f^2*c3;
     CMAP(128+nc,:) = c;
 end
-colormap(CMAP);
+
 
 record = zeros([Nt, 1]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -345,10 +345,10 @@ for T = 1 : Nt
     % Ey(:, :, Ns_z) = Ey(:, :, Ns_z) + Ey_source(T);
     
     % visualize
-    if mod(T, 5) == 0
+    if mod(T, 1) == 0
         shift = 8;
-        slice(Y, X, -Z, field_log_normalize(Ex, shift), 5, 5, 0);
-        
+        slice(Y, X, -Z, field_log_normalize(Ex, shift), 0, 0, 0);
+        colormap(CMAP);
         caxis([-shift, shift]);
         axis equal tight off;
         shading flat;
@@ -356,16 +356,13 @@ for T = 1 : Nt
         
         hold on;
         surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
-        
-        hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
-        hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        hold on
+        plot3(dev_x,dev_y,dev_z,'r','LineWidth',3);
+        plot3(dev_x',dev_y',dev_z','r','LineWidth',3);
         
         t = Dt * T;
         title_str = sprintf('3D FDTD Example (Ex), t = %.3e s', t);
         title(title_str);
-        %alpha(0.6);
         
         F = getframe(gcf);
         writeVideo(vidObj, F);
