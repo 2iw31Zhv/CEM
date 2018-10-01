@@ -31,9 +31,8 @@ z1 = 20.0;
 t_total = 2e-6;
 
 % device parameters
-devlen_min = 5.0;
+devlen_min = 4.0;
 grid_per_devlen = 4;
-
 
 % EM parameters
 freq_max = 5e7;
@@ -44,39 +43,40 @@ refractive_index_max = 1.0;
 refractive_index_bc = 1.0;
 refractive_index_source = 1.0;
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Pre-Computation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % evaluate resolution
-wavelen_min = c0 ./ freq_max ./ refractive_index_max;
-res_wave = wavelen_min ./ grid_per_wavelen;
-res_dev = devlen_min ./ grid_per_devlen;
+wavelen_min = c0 / freq_max / refractive_index_max;
+res_wave = wavelen_min / grid_per_wavelen;
+res_dev = devlen_min / grid_per_devlen;
 res = min(res_wave, res_dev);
 
 % evaluate grid number
-Nx = ceil((x1 - x0) ./ res);
-Ny = ceil((y1 - y0) ./ res);
-Nz = ceil((z1 - z0) ./ res);
+Nx = ceil((x1 - x0) / res);
+Ny = ceil((y1 - y0) / res);
+Nz = ceil((z1 - z0) / res);
 
-res_x = (x1 - x0) ./ Nx;
-res_y = (y1 - y0) ./ Ny;
-res_z = (z1 - z0) ./ Nz;
+res_x = (x1 - x0) / Nx;
+res_y = (y1 - y0) / Ny;
+res_z = (z1 - z0) / Nz;
 
 res_min = min([res_x res_y res_z]);
 
 % evaluate time step
-Dt = 0.1 * refractive_index_bc * res_min / 2.0 / c0;
+Dt = refractive_index_bc * res_min / 2.0 / c0;
 
 % refine time step according to source
 tau = 0.5 / freq_max;
-res_source = 20;
-Dt = min(Dt, tau / res_source);
+N_source = 20;
+res_source = tau / N_source;
+Dt = min(Dt, res_source);
 
 % evaluate iter number
 Nt = ceil( t_total / Dt);
 Dt = t_total / Nt;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Large Scale Parameter Settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -89,8 +89,35 @@ Nz2 = 2 * Nz;
 Eps2 = ones(Nx2, Ny2, Nz2);
 Mu2 = ones(Nx2, Ny2, Nz2);
 
-% TODO 
 % set device epsilon and mu here!
+
+dev_x0 = -2.0;
+dev_x1 = 2.0;
+dev_y0 = -3.0;
+dev_y1 = 3.0;
+dev_z0 = -4.0;
+dev_z1 = 4.0;
+
+dev_eps = 2.0;
+dev_mu = 6.0;
+
+% for nx = 1 : Nx2
+%     for ny = 1 : Ny2
+%         for nz = 1 : Nz2
+%             x = x0 + 0.5 * res_x * nx;
+%             y = y0 + 0.5 * res_y * ny;
+%             z = z0 + 0.5 * res_z * nz;
+%             
+%             if (dev_x0 <= x && x <= dev_x1...
+%                     && dev_y0 <= y && y <= dev_y1...
+%                     && dev_z0 <= z && z <= dev_z1)
+%                 Eps2(nx, ny, nz) = dev_eps;
+%                 Mu2(nx, ny, nz) = dev_mu;
+%             end
+%         end
+%     end
+% end
+
 
 % extract the corresponding elements
 Eps_xx = Eps2(2:2:Nx2, 1:2:Ny2, 1:2:Nz2);
@@ -107,14 +134,14 @@ N_layers_z0 = 20;
 N_layers_z1 = 20;
 
 Sigz2 = zeros(Nx2, Ny2, Nz2);
-for nz = 1 : (2 * N_layers_z0)
-    pos_z = 2 * N_layers_z0 - nz + 1;
-    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
-end
-for nz = 1 : (2 * N_layers_z1)
-    pos_z = Nz2 - 2 * N_layers_z1 + nz;
-    Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
-end
+% for nz = 1 : (2 * N_layers_z0)
+%     pos_z = 2 * N_layers_z0 - nz + 1;
+%     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
+% end
+% for nz = 1 : (2 * N_layers_z1)
+%     pos_z = Nz2 - 2 * N_layers_z1 + nz;
+%     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
+% end
 
 x_array = x0 + res_x * (1 : Nx);
 y_array = y0 + res_y * (1 : Ny);
@@ -132,7 +159,7 @@ Sigz_Dz = Sigz2(1:2:Nx2, 1:2:Ny2, 2:2:Nz2);
 % evaluate update coeff
 mHx0 = 1.0 / Dt + Sigz_Hx ./ (2.0 * epsilon0);
 mHx1 = (1.0 / Dt - Sigz_Hx ./ (2.0 * epsilon0)) ./ mHx0;
-mHx2 = (- c0 ./ Mu_xx) ./ mHx0;
+mHx2 = (-c0 ./ Mu_xx) ./ mHx0;
 
 mHy0 = 1.0 / Dt + Sigz_Hy ./ (2.0 * epsilon0);
 mHy1 = (1.0 / Dt - Sigz_Hy ./ (2.0 * epsilon0)) ./ mHy0;
@@ -187,13 +214,13 @@ Generator = @(t)exp(-((t - delay_time) ./ tau).^2);
 t_array = Dt * (1 : Nt);
 e_source_array = Generator(t_array);
 h_source_array = Generator(t_array + 0.5 * Dt ...
-    + refractive_index_source * res_z / 2.0 / c0);
+    - refractive_index_source * res_z / 2.0 / c0);
 
 source_x = 0.0;
 source_y = 0.0;
-source_z = -10.0;
+source_z = 0.0;
 
-source_angle = 3.14 / 4;
+source_angle = pi / 4;
 Px = cos(source_angle);
 Py = sin(source_angle);
 
@@ -227,7 +254,12 @@ colormap(CMAP);
 
 record = zeros([Nt, 1]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+% initialize movie recorder
+movie_name = '3D_FDTD_Example';
+delete(strcat(movie_name, '.mp4'));
+vidObj = VideoWriter(movie_name, 'MPEG-4');
+open(vidObj);
+
 % main loop
 for T = 1 : Nt
     % =====================================================================
@@ -252,6 +284,12 @@ for T = 1 : Nt
     
     ICurlEz = ICurlEz + CurlEz;
     
+        
+    % update Hx, Hy, Hz
+    Hx = mHx1 .* Hx + mHx2 .* CurlEx;
+    Hy = mHy1 .* Hy + mHy2 .* CurlEy;
+    Hz = Hz + mHz2 .* CurlEz + mHz3 .* ICurlEz;
+   
     % evaluate Curl Hx
     CurlHx = (Hz - circshift(Hz, [0, 1, 0])) ./ res_y...
         - (Hy - circshift(Hy, [0, 0, 1])) ./ res_z;
@@ -269,12 +307,7 @@ for T = 1 : Nt
         - (Hx - circshift(Hx, [0, 1, 0])) ./ res_y;
     
     ICurlHz = ICurlHz + CurlHz;
-    
-    % update Hx, Hy, Hz
-    Hx = mHx1 .* Hx + mHx2 .* CurlEx;
-    Hy = mHy1 .* Hy + mHy2 .* CurlEy;
-    Hz = Hz + mHz2 .* CurlEz + mHz3 .* ICurlEz;
-    
+
     % update Dx, Dy, Dz
     Dx = mDx1 .* Dx + mDx2 .* CurlHx;
     Dy = mDy1 .* Dy + mDy2 .* CurlHy;
@@ -285,16 +318,29 @@ for T = 1 : Nt
     Ey = Dy ./ Eps_yy;
     Ez = Dz ./ Eps_zz;
     
+    % simple soft source (not recommended)
+    % Ex(:, :, Ns_z) = Ex(:, :, Ns_z) + Ex_source(T);
+    % Ey(:, :, Ns_z) = Ey(:, :, Ns_z) + Ey_source(T);
+    
     % visualize
-    if mod(T, 10) == 0
-        shift = 8;
+    if mod(T, 1) == 0
+        shift = 6;
         slice(Y, X, -Z, field_log_normalize(Ex, shift), 0, 0, 0);
         caxis([-shift, shift]);
         axis equal tight off;
-        shading interp;
+        shading flat;
         grid on;
-        pause(0.01);
+        t = Dt * T;
+        title_str = sprintf('3D FDTD Example (Ex), t = %.3e s', t);
+        title(title_str);
+        
+        F = getframe(gcf);
+        writeVideo(vidObj, F);
+        % pause(0.001);
     end
 end
+
+
+close(vidObj);
 
 
