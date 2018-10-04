@@ -160,6 +160,7 @@ for nz = 1 : (2 * N_layers_z0)
     pos_z = 2 * N_layers_z0 - nz + 1;
     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z0)^3;
 end
+
 for nz = 1 : (2 * N_layers_z1)
     pos_z = Nz2 - 2 * N_layers_z1 + nz;
     Sigz2(:, :, pos_z) = (0.5 * epsilon0 / Dt) * (nz / 2.0 / N_layers_z1)^3;
@@ -292,12 +293,20 @@ for T = 1 : Nt
     % evaluate Curl Ex
     CurlEx = (circshift(Ez, [0, -1, 0]) - Ez) ./ res_y...
         - (circshift(Ey, [0, 0, -1]) - Ey) ./ res_z;
+    % handle z boundary
+    CurlEx(:, :, Nz) = (circshift(Ez(:, :, Nz), [0, -1]) - Ez(:, :, Nz)) ./ res_y...
+        - (0.0 - Ey(:, :, Nz)) ./ res_z;
+    
     CurlEx(:, :, Ns_z-1) = CurlEx(:, :, Ns_z-1)...
         + Ey_source(T) / res_z;
     
     % evaluate Curl Ey
     CurlEy = (circshift(Ex, [0, 0, -1]) - Ex) ./ res_z...
         - (circshift(Ez, [-1, 0, 0]) - Ez) ./ res_x;
+    % handle z boundary
+    CurlEy(:, :, Nz) = (0.0 - Ex(:, :, Nz)) ./ res_z...
+        - (circshift(Ez(:, :, Nz), [-1, 0]) - Ez(:, :, Nz)) ./ res_x;
+    
     CurlEy(:, :, Ns_z-1) = CurlEy(:, :, Ns_z-1)...
         - Ex_source(T) / res_z;
     
@@ -316,25 +325,33 @@ for T = 1 : Nt
     % evaluate Curl Hx
     CurlHx = (Hz - circshift(Hz, [0, 1, 0])) ./ res_y...
         - (Hy - circshift(Hy, [0, 0, 1])) ./ res_z;
+    % handle z boudary
+    CurlHx(:, :, 1) = (Hz(:, :, 1) - circshift(Hz(:, :, 1), [0, 1])) ./ res_y...
+        - (Hy(:, :, 1) - 0.0) ./ res_z;
     CurlHx(:, :, Ns_z) = CurlHx(:, :, Ns_z)...
         + Hy_source(T) / res_z;
     
     % evaluate Curl Hy
     CurlHy = (Hx - circshift(Hx, [0, 0, 1])) ./ res_z...
         - (Hz - circshift(Hz, [1, 0, 0])) ./ res_x;
+    % handle z boundary
+    CurlHy(:, :, 1) = (Hx(:, :, 1) - 0.0) ./ res_z...
+        - (Hz(:, :, 1) - circshift(Hz(:, :, 1), [1, 0])) ./ res_x;
+    
     CurlHy(:, :, Ns_z) = CurlHy(:, :, Ns_z)...
         - Hx_source(T) / res_z;
+    
+    
+    ICurlHz = ICurlHz + CurlHz;
     
     % evaluate Curl Hz
     CurlHz = (Hy - circshift(Hy, [1, 0, 0])) ./ res_x...
         - (Hx - circshift(Hx, [0, 1, 0])) ./ res_y;
     
-    ICurlHz = ICurlHz + CurlHz;
-
     % update Dx, Dy, Dz
     Dx = mDx1 .* Dx + mDx2 .* CurlHx;
     Dy = mDy1 .* Dy + mDy2 .* CurlHy;
-    Dz = Dz + (mDz2 - mDz3) .* CurlHz + mDz3 .* ICurlHz;
+    Dz = Dz + mDz2 .* CurlHz + mDz3 .* (ICurlHz + 0.5 * CurlHz);
     
     % update Ex, Ey, Ez
     Ex = Dx ./ Eps_xx;
@@ -520,13 +537,7 @@ for T = 1 : Nt
         
         F = getframe(gcf);
         writeVideo(vidObj, F);
-        
-        
         % pause(0.001);
     end
 end
-
-
 close(vidObj);
-
-
