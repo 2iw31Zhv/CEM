@@ -207,9 +207,31 @@ delete(strcat(movie_name, '.mp4'));
 vidObj = VideoWriter(movie_name, 'MPEG-4');
 open(vidObj);
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% the colormap from http://emlab.utep.edu/ee5390fdtd.htm
+CMAP = zeros(256,3);
+c1 = [0 0 1]; %blue
+c2 = [1 1 1]; %white
+c3 = [1 0 0]; %red
+for nc = 1 : 128
+    f = (nc - 1)/128;
+    c = (1 - sqrt(f))*c1 + sqrt(f)*c2;
+    CMAP(nc,:) = c;
+    c = (1 - f^2)*c2 + f^2*c3;
+    CMAP(128+nc,:) = c;
+end
+colormap(CMAP);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ % set device drawing
+phi = linspace(0, 2*pi, 100);
+profile_x = device_radius * cos(phi) + device_center_x;
+profile_y = device_radius * sin(phi) + device_center_y;
+device_color = [0.7 0.7 0.7];
+
 % HDE Algorithm main loop
 for T = 1 : Nt
-   
+    
     % evaluate Curl Ex
     for nx = 1 : Nx
         for ny = 1 : (Ny - 1)
@@ -219,10 +241,8 @@ for T = 1 : Nt
         CurlEx(nx, Ny) = (0.0 - Ez(nx, Ny)) ./ res_y;
     end
     
-    % TF/SF for Ez
-    for nx = 1 : Nx
-        CurlEx(nx, Ns_y-1) = CurlEx(nx, Ns_y-1) - e_source(T) / res_y;
-    end
+    % TF/SF for E
+    CurlEx(:, Ns_y-1) = CurlEx(:, Ns_y-1) - e_source(T) / res_y;
     
     ICurlEx = ICurlEx + CurlEx;
     
@@ -239,19 +259,10 @@ for T = 1 : Nt
     ICurlEy = ICurlEy + CurlEy;
     
     % Hx, Hy <- Curl Ex, Curl Ey
-    % Hx = Hx - (c0 .* Dt ./ Mu_xx) .* CurlEx;
-    % Hy = Hy - (c0 .* Dt ./ Mu_yy) .* CurlEy;
     Hx = mHx1 .* Hx + mHx2 .* CurlEx + mHx3 .* ICurlEx;
     Hy = mHy1 .* Hy + mHy2 .* CurlEy + mHy3 .* ICurlEy;
     
     % evaluate Curl Hz
-%     CurlHz(1, 1) = (Hy(1, 1) - 0.0) ./ res_x...
-%                 - (Hx(1, 1) - 0.0) ./ res_y;
-%     for ny = 2 : Ny
-%         CurlHz(1, ny) = (Hy(1, ny) - 0.0) ./ res_x...
-%                 - (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
-%     end
-    
     CurlHz(1, 1) = (Hy(1, 1) - Hy(Nx, 1)) ./ res_x...
                 - (Hx(1, 1) - 0.0) ./ res_y;
     for ny = 2 : Ny
@@ -269,9 +280,7 @@ for T = 1 : Nt
     end
     
     % TF/SF for Hx
-    for nx = 1 : Nx
-        CurlHz(nx, Ns_y) = CurlHz(nx, Ns_y) + h_source(T) / res_y;
-    end
+    CurlHz(:, Ns_y) = CurlHz(:, Ns_y) + h_source(T) / res_y;
     
     % Dz <- Curl Hz
     % Dz = Dz + c0 .* Dt .* CurlHz;
@@ -279,46 +288,20 @@ for T = 1 : Nt
     
     IDz = IDz + Dz;
     
-    % simple soft source
-    % t_now = Dt .* T;
+    % simple soft source (not recommended)
     % Dz(Ns_x, Ns_y) = Dz(Ns_x, Ns_y) + source_array(T);
     
     % Ez <- Dz
     Ez = Dz ./ Eps_zz;
     
-    % Ez_recorder(T) = Ez(Ns_x + 10, Ns_y + 10);
-    
     % visualize the results
-    if mod(T, 10) == 0
-        
-        % set device drawing
-        phi = linspace(0, 2*pi, 100);
-        profile_x = device_radius * cos(phi) + device_center_x;
-        profile_y = device_radius * sin(phi) + device_center_y;
-        device_color = [0.7 0.7 0.7];
+    if mod(T, 5) == 0
+        shift = 8;
+        clf;
         
         subplot(1, 3, 1);
         fill(profile_x, profile_y, device_color);
         hold on;
-        
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
-        CMAP = zeros(256,3);
-        c1 = [0 0 1]; %blue
-        c2 = [1 1 1]; %white
-        c3 = [1 0 0]; %red
-        for nc = 1 : 128
-            f = (nc - 1)/128;
-            c = (1 - sqrt(f))*c1 + sqrt(f)*c2;
-            CMAP(nc,:) = c;
-            c = (1 - f^2)*c2 + f^2*c3;
-            CMAP(128+nc,:) = c;
-        end
-        colormap(CMAP);
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        shift = 8;
         imagesc(x_array, y_array, field_log_normalize(Ez, shift)');
         caxis([-shift, shift]);
         axis equal tight;
@@ -328,8 +311,6 @@ for T = 1 : Nt
         subplot(1, 3, 2);
         fill(profile_x, profile_y, device_color);
         hold on;
-        
-        shift = 8;
         imagesc(x_array, y_array, field_log_normalize(Hx, shift)');
         caxis([-shift, shift]);
         axis equal tight;
@@ -340,15 +321,12 @@ for T = 1 : Nt
         subplot(1, 3, 3);
         fill(profile_x, profile_y, device_color);
         hold on;
-        
-        shift = 8;
         imagesc(x_array, y_array, field_log_normalize(Hy, shift)');
         caxis([-shift, shift]);
         axis equal tight;
         title('Hy');
         alpha(0.3);
-        
-        
+                
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
         subtitle(title_str);
