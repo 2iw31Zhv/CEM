@@ -12,7 +12,7 @@ clear variables;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 2e-7; % s
+t_total = 10e-7; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -47,6 +47,10 @@ res = min(res_wave, res_dev);
 
 % evaluate grid number
 Nx = ceil((x1 - x0) ./ res);
+if mod(Nx, 2) == 0
+    Nx = Nx + 1;
+end
+
 Ny = ceil((y1 - y0) ./ res);
 res_x = (x1 - x0) ./ Nx;
 res_y = (y1 - y0) ./ Ny;
@@ -104,6 +108,7 @@ N_layers_y0 = 20;
 N_layers_y1 = 20;
 
 Sigx2 = zeros(Nx2, Ny2);
+
 % for nx = 1 : (2 * N_layers_x0)
 %     pos_x = 2 * N_layers_x0 - nx + 1;
 %     Sigx2(pos_x, :) = (0.5 * epsilon0 / Dt) * (nx / 2.0 / N_layers_x0)^3;
@@ -123,12 +128,6 @@ for ny = 1 : (2 * N_layers_y1)
     pos_y = Ny2 - 2 * N_layers_y1 + ny;
     Sigy2(:, pos_y) = (0.5 * epsilon0 / Dt) * (ny / 2.0 / N_layers_y1)^3;
 end
-
-% now visualize it!
-% subplot(1, 2, 1);
-% imagesc(1:Nx2, 1:Ny2, Sigx2');
-% subplot(1, 2, 2);
-% imagesc(1:Nx2, 1:Ny2, Sigy2');
 
 % compute PML update coeff
 Sigx_Hx = Sigx2(1:2:Nx2, 2:2:Ny2);
@@ -229,32 +228,31 @@ profile_x = device_radius * cos(phi) + device_center_x;
 profile_y = device_radius * sin(phi) + device_center_y;
 device_color = [0.7 0.7 0.7];
 
+% compute steady state Ez field using fourier transform
+N_record_ref = Ns_y - 2;
+N_record_trn = Ny - N_layers_y1 - 1;
+
+n_freq = 100;
+freq_array = linspace(0, freq_max, n_freq);
+freq_kernel = exp(-1i * 2 * pi * freq_array * Dt);
+
+REF = zeros(Nx, n_freq);
+TRN = zeros(Nx, n_freq);
+SRC = zeros(Nx, n_freq);
+
 % HDE Algorithm main loop
 for T = 1 : Nt
-    
     % evaluate Curl Ex
-    for nx = 1 : Nx
-        for ny = 1 : (Ny - 1)
-            CurlEx(nx, ny) = (Ez(nx, ny+1) - Ez(nx, ny)) ./ res_y;
-        end
-        % handle boundary condition
-        CurlEx(nx, Ny) = (0.0 - Ez(nx, Ny)) ./ res_y;
-    end
+    CurlEx = (circshift(Ez, [0 -1]) - Ez) / res_y;
+    CurlEx(:, Ny) = (0.0 - Ez(:, Ny)) ./ res_y;
     
     % TF/SF for E
     CurlEx(:, Ns_y-1) = CurlEx(:, Ns_y-1) - e_source(T) / res_y;
     
     ICurlEx = ICurlEx + CurlEx;
     
-    % evaluate Curl Ey
-    for ny = 1 : Ny
-        for nx = 1 : (Nx - 1)
-            CurlEy(nx, ny) = -(Ez(nx+1, ny) - Ez(nx, ny)) ./ res_x;
-        end
-        % handle boundary condition
-        % CurlEy(Nx, ny) = -(0.0 - Ez(Nx, ny)) ./ res_x;
-        CurlEy(Nx, ny) = -(Ez(1, ny) - Ez(nx, ny)) ./ res_x;
-    end
+    % evaluate Curl Ey 
+    CurlEy = - (circshift(Ez, [-1 0]) - Ez) / res_x;
     
     ICurlEy = ICurlEy + CurlEy;
     
@@ -263,21 +261,10 @@ for T = 1 : Nt
     Hy = mHy1 .* Hy + mHy2 .* CurlEy + mHy3 .* ICurlEy;
     
     % evaluate Curl Hz
-    CurlHz(1, 1) = (Hy(1, 1) - Hy(Nx, 1)) ./ res_x...
-                - (Hx(1, 1) - 0.0) ./ res_y;
-    for ny = 2 : Ny
-        CurlHz(1, ny) = (Hy(1, ny) - Hy(Nx, ny)) ./ res_x...
-                - (Hx(1, ny) - Hx(1, ny-1)) ./ res_y;
-    end
-    
-    for nx = 2 : Nx
-        CurlHz(nx, 1) = (Hy(nx, 1) - Hy(nx-1, 1)) ./ res_x...
-                - (Hx(nx, 1) - 0.0) ./ res_y;
-        for ny = 2 : Ny
-            CurlHz(nx, ny) = (Hy(nx, ny) - Hy(nx-1, ny)) ./ res_x...
-                - (Hx(nx, ny) - Hx(nx, ny-1)) ./ res_y;
-        end
-    end
+    CurlHz = (Hy - circshift(Hy, [1 0])) / res_x...
+        - (Hx - circshift(Hx, [0 1])) / res_y;
+    CurlHz(:, 1) = (Hy(:, 1) - circshift(Hy(:, 1), [1 0])) / res_x...
+        - (Hx(:, 1) - 0.0) / res_y;
     
     % TF/SF for Hx
     CurlHz(:, Ns_y) = CurlHz(:, Ns_y) + h_source(T) / res_y;
@@ -294,39 +281,97 @@ for T = 1 : Nt
     % Ez <- Dz
     Ez = Dz ./ Eps_zz;
     
+    for nf = 1 : n_freq
+        REF(:, nf) = REF(:, nf) + Dt * (freq_kernel(nf).^T) * Ez(:, N_record_ref);
+        TRN(:, nf) = TRN(:, nf) + Dt * (freq_kernel(nf).^T) * Ez(:, N_record_trn);
+        SRC(:, nf) = SRC(:, nf) + Dt * (freq_kernel(nf).^T) * e_source(T);
+    end
+    
+    % get reflectance and transmittance for different Bloch modes
+    n_inc = 1.0;
+    n_record_ref = 1.0;
+    n_record_trn = 1.0;
+
+    DE_r_allmodes = zeros(n_freq, 1);
+    DE_t_allmodes = zeros(n_freq, 1);
+
+    Eref = zeros(Nx, 1);
+    Etrn = zeros(Nx, 1);
+
+    for nfreq = 1 : n_freq
+        k0 = 2 * pi * freq_array(nfreq) / c0;
+        kyinc = n_inc * k0;
+
+        m = (- floor(Nx/ 2) : floor(Nx/2))';
+        kxm = -2 * pi * m / (x1 - x0);
+
+        ky_ref = sqrt((k0 * n_record_ref).^2 - kxm.^2);
+        ky_trn = sqrt((k0 * n_record_trn).^2 - kxm.^2);
+
+        Eref(:) = REF(:, nfreq) ./ SRC(:, nfreq);
+        Etrn(:) = TRN(:, nfreq) ./ SRC(:, nfreq);
+
+        Eref = fftshift(fft(Eref)) / Nx;
+        Etrn = fftshift(fft(Etrn)) / Nx;
+
+        DE_ref = abs(Eref).^2 .* real(ky_ref ./ kyinc);
+        DE_trn = abs(Etrn).^2 .* real(ky_trn ./ kyinc);
+
+        DE_r_allmodes(nfreq) = sum(DE_ref);
+        DE_t_allmodes(nfreq) = sum(DE_trn);
+    end
+
+    DE_s_allmodes = DE_r_allmodes + DE_t_allmodes;
+
+
+
     % visualize the results
-    if mod(T, 5) == 0
+    if mod(T, 10) == 0
         shift = 8;
         clf;
         
-        subplot(1, 3, 1);
+        subplot(2, 3, 1);
         fill(profile_x, profile_y, device_color);
         hold on;
         imagesc(x_array, y_array, field_log_normalize(Ez, shift)');
         caxis([-shift, shift]);
         axis equal tight;
-        title('Ez');
+        xlabel('Ez');
+        %title('Ez');
         alpha(0.3);
         
-        subplot(1, 3, 2);
+        subplot(2, 3, 2);
         fill(profile_x, profile_y, device_color);
         hold on;
         imagesc(x_array, y_array, field_log_normalize(Hx, shift)');
         caxis([-shift, shift]);
         axis equal tight;
-        title('Hx');
+        xlabel('Hx');
+        %title('Hx');
         alpha(0.3);
         
         
-        subplot(1, 3, 3);
+        subplot(2, 3, 3);
         fill(profile_x, profile_y, device_color);
         hold on;
         imagesc(x_array, y_array, field_log_normalize(Hy, shift)');
         caxis([-shift, shift]);
         axis equal tight;
-        title('Hy');
+        xlabel('Hy');
+        %title('Hy');
         alpha(0.3);
-                
+        
+        subplot(2, 3, 4:6);
+        plot(freq_array, DE_r_allmodes, '-r', 'LineWidth', 3);
+        hold on;
+        plot(freq_array, DE_t_allmodes, '-g', 'LineWidth', 2);
+        hold on;
+        plot(freq_array, DE_s_allmodes, '-k', 'LineWidth', 1);
+        axis([freq_array(2), freq_max, 0, 1.5]);
+        xlabel('Frequency (Hz)');
+        legend('reflectance', 'transmittance', 'total');
+        
+        
         t = Dt .*T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
         subtitle(title_str);
@@ -336,5 +381,6 @@ for T = 1 : Nt
         % pause(0.001);
     end
 end
+
 
 close(vidObj);
