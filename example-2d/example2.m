@@ -12,7 +12,7 @@ clear variables;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % simulation parameters
-t_total = 10e-7; % s
+t_total = 1e-6; % s
 x0 = 0.0; % m
 x1 = 10.0; % m
 y0 = 0.0; % m
@@ -199,7 +199,7 @@ x_array = linspace(x0, x1, Nx);
 y_array = linspace(y0, y1, Ny);
 
 % Ez_recorder = zeros(Nt, 1);
-
+% figure('units','normalized','outerposition',[0 0 1 1]);
 % initialize movie recorder
 movie_name = '2D_FDTD_Example';
 delete(strcat(movie_name, '.mp4'));
@@ -240,6 +240,12 @@ REF = zeros(Nx, n_freq);
 TRN = zeros(Nx, n_freq);
 SRC = zeros(Nx, n_freq);
 
+DE_r_allmodes = zeros(n_freq, 1);
+DE_t_allmodes = zeros(n_freq, 1);
+
+Eref = zeros(Nx, n_freq);
+Etrn = zeros(Nx, n_freq);
+    
 % HDE Algorithm main loop
 for T = 1 : Nt
     % evaluate Curl Ex
@@ -292,38 +298,32 @@ for T = 1 : Nt
     n_record_ref = 1.0;
     n_record_trn = 1.0;
 
-    DE_r_allmodes = zeros(n_freq, 1);
-    DE_t_allmodes = zeros(n_freq, 1);
-
-    Eref = zeros(Nx, 1);
-    Etrn = zeros(Nx, 1);
-
     for nfreq = 1 : n_freq
+        
         k0 = 2 * pi * freq_array(nfreq) / c0;
+        % for normal incident light
         kyinc = n_inc * k0;
 
-        m = (- floor(Nx/ 2) : floor(Nx/2))';
+        m = (- floor(Nx/2) : floor(Nx/2))';
         kxm = -2 * pi * m / (x1 - x0);
 
-        ky_ref = sqrt((k0 * n_record_ref).^2 - kxm.^2);
-        ky_trn = sqrt((k0 * n_record_trn).^2 - kxm.^2);
+        ky_ref = sqrt((k0 * n_record_ref)^2 - kxm.^2);
+        ky_trn = sqrt((k0 * n_record_trn)^2 - kxm.^2);
 
-        Eref(:) = REF(:, nfreq) ./ SRC(:, nfreq);
-        Etrn(:) = TRN(:, nfreq) ./ SRC(:, nfreq);
+        Eref(:, nfreq) = REF(:, nfreq) ./ SRC(:, nfreq);
+        Etrn(:, nfreq) = TRN(:, nfreq) ./ SRC(:, nfreq);
 
-        Eref = fftshift(fft(Eref)) / Nx;
-        Etrn = fftshift(fft(Etrn)) / Nx;
+        Eref(:, nfreq) = fftshift(fft(Eref(:, nfreq))) / Nx;
+        Etrn(:, nfreq) = fftshift(fft(Etrn(:, nfreq))) / Nx;
 
-        DE_ref = abs(Eref).^2 .* real(ky_ref ./ kyinc);
-        DE_trn = abs(Etrn).^2 .* real(ky_trn ./ kyinc);
+        DE_ref = abs(Eref).^2 .* real(ky_ref / kyinc);
+        DE_trn = abs(Etrn).^2 .* real(ky_trn / kyinc);
 
-        DE_r_allmodes(nfreq) = sum(DE_ref);
-        DE_t_allmodes(nfreq) = sum(DE_trn);
+        DE_r_allmodes(nfreq) = sum(DE_ref(:, nfreq));
+        DE_t_allmodes(nfreq) = sum(DE_trn(:, nfreq));
     end
 
     DE_s_allmodes = DE_r_allmodes + DE_t_allmodes;
-
-
 
     % visualize the results
     if mod(T, 10) == 0
@@ -350,7 +350,6 @@ for T = 1 : Nt
         %title('Hx');
         alpha(0.3);
         
-        
         subplot(2, 3, 3);
         fill(profile_x, profile_y, device_color);
         hold on;
@@ -370,9 +369,8 @@ for T = 1 : Nt
         axis([freq_array(2), freq_max, 0, 1.5]);
         xlabel('Frequency (Hz)');
         legend('reflectance', 'transmittance', 'total');
-        
-        
-        t = Dt .*T;
+              
+        t = Dt .* T;
         title_str = sprintf('2D FDTD Example (Ez Mode), t = %.3e s', t);
         subtitle(title_str);
         
@@ -381,6 +379,6 @@ for T = 1 : Nt
         % pause(0.001);
     end
 end
-
-
 close(vidObj);
+
+save 'transmittance.mat' DE_trn
