@@ -21,27 +21,47 @@ c0 = 299792458; % m/s
 epsilon0 = 8.854188e-12; % F/m
 
 % simulation size
-x0 = -5.0;
-x1 = 5.0;
-y0 = -5.0;
-y1 = 5.0;
-z0 = -20.0;
-z1 = 20.0;
+x0 = -4e-7; % m 
+x1 = 4e-7; % m
+y0 = -4e-7; % m
+y1 = 4e-7; % m
+z0 = -1.6e-6; % m
+z1 = 1.6e-6; % m
 
-t_total = 2e-6;
+% set device epsilon and mu here!
+
+dev_x0 = -1e-7; % m
+dev_x1 = 1e-7; % m
+dev_y0 = -3e-7; % m
+dev_y1 = 3e-7; % m
+dev_z0 = -4e-7; % m
+dev_z1 = 4e-7; % m
+
+dev_eps = 18.179; % relative permittivity of armorphous silicon
+dev_mu = 1.0; % relative permeability of armorphous silicon
+
+source_x = 0.0; % m
+source_y = 0.0; % m
+source_z = -1e-6; % m
+
+source_angle = 0.5 * pi;
+
+t_total = 2e-13;
 
 % device parameters
-devlen_min = 4.0;
+devlen_min = 2e-7; % m
 grid_per_devlen = 4;
 
 % EM parameters
-freq_max = 5e7;
+lambda0_min = 1.650e-6; % m, 1650 nm
+freq_max = c0 / lambda0_min;
 grid_per_wavelen = 20;
 
 % required dependent parameters
-refractive_index_max = 1.0;
+refractive_index_max = sqrt(dev_eps);
 refractive_index_bc = 1.0;
 refractive_index_source = 1.0;
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Pre-Computation
@@ -54,8 +74,16 @@ res_dev = devlen_min / grid_per_devlen;
 res = min(res_wave, res_dev);
 
 % evaluate grid number
+% to include normal bloch modes, Nx, Ny must be odd
 Nx = ceil((x1 - x0) / res);
+if mod(Nx, 2) == 0
+    Nx = Nx + 1;
+end
 Ny = ceil((y1 - y0) / res);
+if mod(Ny, 2) == 0
+    Ny = Ny + 1;
+end
+
 Nz = ceil((z1 - z0) / res);
 
 res_x = (x1 - x0) / Nx;
@@ -89,17 +117,7 @@ Nz2 = 2 * Nz;
 Eps2 = ones(Nx2, Ny2, Nz2);
 Mu2 = ones(Nx2, Ny2, Nz2);
 
-% set device epsilon and mu here!
 
-dev_x0 = -2.0;
-dev_x1 = 2.0;
-dev_y0 = -3.0;
-dev_y1 = 3.0;
-dev_z0 = -4.0;
-dev_z1 = 4.0;
-
-dev_eps = 2.0;
-dev_mu = 6.0;
 
 for nx = 1 : Nx2
     for ny = 1 : Ny2
@@ -149,7 +167,6 @@ Eps_zz = Eps2(1:2:Nx2, 1:2:Ny2, 2:2:Nz2);
 Mu_xx = Mu2(1:2:Nx2, 2:2:Ny2, 2:2:Nz2);
 Mu_yy = Mu2(2:2:Nx2, 1:2:Ny2, 2:2:Nz2);
 Mu_zz = Mu2(2:2:Nx2, 2:2:Ny2, 1:2:Nz2);
-
 
 % set PML parameters
 N_layers_z0 = 20;
@@ -239,11 +256,7 @@ e_source_array = Generator(t_array);
 h_source_array = Generator(t_array + 0.5 * Dt ...
     + refractive_index_source * res_z / 2.0 / c0);
 
-source_x = 0.0;
-source_y = 0.0;
-source_z = -10.0;
 
-source_angle = pi / 4;
 Px = cos(source_angle);
 Py = sin(source_angle);
 
@@ -259,6 +272,8 @@ impedance_ref_y = sqrt(Mu_yy(Ns_x, Ns_y, Ns_z) / Eps_yy(Ns_x, Ns_y, Ns_z));
 
 Hx_source = -Py * h_source_array / impedance_ref_x;
 Hy_source = Px * h_source_array / impedance_ref_y;
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % the colormap from http://emlab.utep.edu/ee5390fdtd.htm
@@ -283,6 +298,37 @@ movie_name = '3D_FDTD_Example';
 delete(strcat(movie_name, '.mp4'));
 vidObj = VideoWriter(movie_name, 'MPEG-4');
 open(vidObj);
+
+
+% z location of the recording plane
+N_record_ref = Ns_z - 2;
+N_record_trn = Nz - N_layers_z1 - 1;
+
+% sample n_freq frequency to do 
+% time domain -> freq. domain transform
+NFREQ = 100;
+freq_array = linspace(0, freq_max, NFREQ);
+freq_kernel = exp(-1i * 2 * pi * freq_array * Dt);
+
+Exref = zeros(Nx, Ny, NFREQ);
+Eyref = zeros(Nx, Ny, NFREQ);
+Extrn = zeros(Nx, Ny, NFREQ);
+Eytrn = zeros(Nx, Ny, NFREQ);
+Exsrc = zeros(Nx, Ny, NFREQ);
+Eysrc = zeros(Nx, Ny, NFREQ);
+Sxref = zeros(Nx, Ny, NFREQ);
+Syref = zeros(Nx, Ny, NFREQ);
+Sxtrn = zeros(Nx, Ny, NFREQ);
+Sytrn = zeros(Nx, Ny, NFREQ);
+Szref = zeros(Nx, Ny, NFREQ);
+Sztrn = zeros(Nx, Ny, NFREQ);
+
+Sref = zeros(Nx, Ny, NFREQ);
+Strn = zeros(Nx, Ny, NFREQ);
+
+REF = zeros(NFREQ, 1);
+TRN = zeros(NFREQ, 1);
+SUM = zeros(NFREQ, 1);
 
 % main loop
 for T = 1 : Nt
@@ -362,174 +408,260 @@ for T = 1 : Nt
     % Ex(:, :, Ns_z) = Ex(:, :, Ns_z) + Ex_source(T);
     % Ey(:, :, Ns_z) = Ey(:, :, Ns_z) + Ey_source(T);
     
+    
+    for f = 1 : NFREQ
+        Exref(:, :, f) = Exref(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ex(:, :, N_record_ref);
+        Eyref(:, :, f) = Eyref(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ey(:, :, N_record_ref);
+        Extrn(:, :, f) = Extrn(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ex(:, :, N_record_trn);
+        Eytrn(:, :, f) = Eytrn(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ey(:, :, N_record_trn);
+        Exsrc(:, :, f) = Exsrc(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ex_source(T);
+        Eysrc(:, :, f) = Eysrc(:, :, f) + Dt * (freq_kernel(f)^T)...
+            * Ey_source(T);
+    end
+    
+    n_inc = 1.0;
+    n_record_ref = 1.0;
+
+    % the record plane contains non-trivial refractive index!
+    % assuming isotropic Eps
+    n_record_trn = sqrt(Eps_zz(:, :, N_record_trn));
+
+    for f = 1 : NFREQ
+        % wave number in vacuum
+        k0 = 2 * pi * freq_array(f) / c0;
+        % for normal incident light and transmission light
+        kzinc = n_inc * k0;
+
+        % sample bloch modes along x direction
+        M = (- floor(Nx/2) : floor(Nx/2));
+        % sample bloch modes along y direction
+        N = (- floor(Ny/2) : floor(Ny/2));
+        kxm = -2 * pi * M / (x1 - x0);
+        kyn = -2 * pi * N / (y1 - y0);
+        % get 2D horizontal bloch mode
+        [ky,kx] = meshgrid(kyn,kxm);
+
+        % get the corresponding mode for z direction
+        % if real, transmission mode
+        % if imagine, evanescent mode
+        kzRef = sqrt((k0 * n_record_ref).^2 - kx.^2 - ky.^2);
+        kzTrn = sqrt((k0 * n_record_trn).^2 - kx.^2 - ky.^2);
+
+        % transform to bloch space for x and y components
+        Sxref(:, :, f) = fftshift(fft2(Exref(:, :, f) ./ (Exsrc(:, :, f) + 1e-20))) / (Nx * Ny);
+        Syref(:, :, f) = fftshift(fft2(Eyref(:, :, f) ./ (Eysrc(:, :, f) + 1e-20))) / (Nx * Ny);
+        Sxtrn(:, :, f) = fftshift(fft2(Extrn(:, :, f) ./ (Exsrc(:, :, f) + 1e-20))) / (Nx * Ny);
+        Sytrn(:, :, f) = fftshift(fft2(Eytrn(:, :, f) ./ (Eysrc(:, :, f) + 1e-20))) / (Nx * Ny);
+
+        % evaluate the z components in bloch space 
+        Szref(:, :, f) = - (kx .* Sxref(:, :, f)...
+            + ky .* Syref(:, :, f)) ./ kzRef;
+        Sztrn(:, :, f) = - (kx .* Sxtrn(:, :, f)...
+            + ky .* Sytrn(:, :, f)) ./ kzTrn;
+
+        Sref(:, :, f) = abs(Sxref(:, :, f)).^2 ...
+        + abs(Syref(:, :, f)).^2 ...
+        + abs(Szref(:, :, f)).^2;
+        Strn(:, :, f) = abs(Sxtrn(:, :, f)).^2 ...
+            + abs(Sytrn(:, :, f)).^2 ...
+            + abs(Sztrn(:, :, f)).^2;
+
+        Sref(:, :, f) = Sref(:, :, f) .* real(kzRef ./ kzinc);
+        % the relation is related to the permeability in the region
+        % but because we have the permeability always equal to 1.0
+        % we can just omit that term
+        Strn(:, :, f) = Strn(:, :, f) .* real(kzTrn ./ kzinc);
+
+        REF(f) = sum(sum(Sref(:, :, f)));
+        TRN(f) = sum(sum(Strn(:, :, f)));
+        SUM(f) = REF(f) + TRN(f);
+    end
+    
     % visualize
-    if mod(T, 5) == 0
+    if mod(T, 20) == 0
         clf;
         
         shift = 8;
         
-        subplot(2, 3, 1);
-        slice(Y, X, -Z, field_log_normalize(Ex, shift), 5, 5, 0);
+        subplot(3, 3, 1);
+        slice(Y, X, -Z, field_log_normalize(Ex, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
         
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
         hold on;
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);
         title('Ex');
          
-        subplot(2, 3, 2);
-        slice(Y, X, -Z, field_log_normalize(Ey, shift), 5, 5, 0);
+        subplot(3, 3, 2);
+        slice(Y, X, -Z, field_log_normalize(Ey, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
+        hold on;       
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);        
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);     
         title('Ey');
         
-        subplot(2, 3, 3);
-        slice(Y, X, -Z, field_log_normalize(Ez, shift), 5, 5, 0);
+        subplot(3, 3, 3);
+        slice(Y, X, -Z, field_log_normalize(Ez, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
+        hold on;       
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);
         title('Ez');
         
-        subplot(2, 3, 4);
-        slice(Y, X, -Z, field_log_normalize(Hx, shift), 5, 5, 0);
+        subplot(3, 3, 4);
+        slice(Y, X, -Z, field_log_normalize(Hx, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
+        hold on;     
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);
         title('Hx');
         
-        subplot(2, 3, 5);
-        slice(Y, X, -Z, field_log_normalize(Hy, shift), 5, 5, 0);
+        subplot(3, 3, 5);
+        slice(Y, X, -Z, field_log_normalize(Hy, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
+        hold on;       
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);        
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);      
         title('Hy');
         
-        subplot(2, 3, 6);
-        slice(Y, X, -Z, field_log_normalize(Hz, shift), 5, 5, 0);
+        subplot(3, 3, 6);
+        slice(Y, X, -Z, field_log_normalize(Hz, shift), y1, x1, 0.5*(z0 + z1));
         caxis([-shift, shift]);
         axis equal tight off;
         shading interp;
         hold on;
-        plot3([5 5], [-5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [20.0 - N_layers_z1 * res_z 20.0 - N_layers_z1 * res_z], '-k');
+        plot3([x0 x1], [y1, y1],...
+            [z1 - N_layers_z1 * res_z z1 - N_layers_z1 * res_z], '-k');
         hold on;
-        plot3([5 5], [-5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z],...
+        plot3([x1 x1], [y0, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z],...
             '-k');
         hold on;
-        plot3([-5 5], [5, 5],...
-            [-20 + N_layers_z0 * res_z -20.0 + N_layers_z0 * res_z], '-k');
-        hold on;        
-        surf(devX,devY,devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
+        plot3([x0 x1], [y1, y1],...
+            [z0 + N_layers_z0 * res_z z0 + N_layers_z0 * res_z], '-k');
+        hold on;      
+        surf(devY,devX,-devZ,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[0.8 0.8 0.8])
         hold on;
-        plot3(dev_x,dev_y,dev_z,'k','LineWidth',1);
+        plot3(dev_y,dev_x,-dev_z,'k','LineWidth',1);
         hold on;
-        plot3(dev_x',dev_y',dev_z','k','LineWidth',1);
+        plot3(dev_y',dev_x',-dev_z','k','LineWidth',1);
         title('Hz');
+        
+        
+        subplot(3, 3, 7:9);
+        plot(freq_array, REF, '-r', 'LineWidth', 3);
+        hold on;
+        plot(freq_array, TRN, '-g', 'LineWidth', 2);
+        hold on;
+        plot(freq_array, SUM, '-k', 'LineWidth', 1);
+        axis([freq_array(2), freq_max, 0, 1.5]);
+        xlabel('Frequency (Hz)');
+        legend('reflectance', 'transmittance', 'total');
+        
         
         t = Dt .*T;
         title_str = sprintf('3D FDTD Example, t = %.3e s', t);
