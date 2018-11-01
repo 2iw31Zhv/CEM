@@ -20,7 +20,8 @@ Q = 7;
 % a round hole with radius r
 r = 0.35 * a;
 % relative dielectric constant of substrate
-epsilon_r = 9.0;
+epsilon_r_out = 1.5;
+epsilon_r_in = 2.5;
 
 % physical constant
 
@@ -33,7 +34,7 @@ Dy = a / Ny;
 
 % define the permittivity and permeability field
 UR = ones(Nx, Ny);
-ER = ones(Nx, Ny);
+ER = epsilon_r_in * ones(Nx, Ny);
 
 for i = 1 : Nx
     for j = 1 : Ny
@@ -41,7 +42,7 @@ for i = 1 : Nx
         real_y = -0.5 * a + Dy * (j - 0.5);
         
         if (real_x * real_x + real_y * real_y > r * r)
-            ER(i, j) = epsilon_r;
+            ER(i, j) = epsilon_r_out;
         end
     end
 end
@@ -60,7 +61,7 @@ Gamma = [0; 0];
 CHI = 0.5 * T1;
 M = 0.5 * T1 + 0.5 * T2;
 
-Nb = 100;
+Nb = 200;
 NB = 1 + 2  * Nb + round(sqrt(2) * Nb);
 beta = zeros(2, NB);
 
@@ -116,5 +117,17 @@ ylabel('normalized frequency \omega a / 2 \pi c');
 set(gca,'xtick',[1 Nb+1 2*Nb+1 NB]);
 set(gca,'xticklabel',{'\Gamma','X','M','\Gamma'});
 xlabel('Bloch wave vector \beta');
-title('Energy band diagram of periodic round hole');
+title('Energy band diagram of round waveguide');
+box on;
 saveas(fig, 'energyband.png');
+
+% the final recorded would be Gamma
+% the first with non-zero energy
+X = -0.5 * a + Dx * ((1:Nx) - 0.5);
+Y = -0.5 * a + Dy * ((1:Ny) - 0.5);
+[Y, X] = meshgrid(Y, X);
+
+for i = 1 : 8
+    mode_visualize(V, i, [0;0], P, Q, X, Y, 0.35);
+end
+
