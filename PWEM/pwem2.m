@@ -11,6 +11,8 @@ clear variables;
 % solve region
 % define a x a square region with periodic condition
 a = 1.0; % m
+% samples of the Fourier basis
+% remember we assume them to be odd
 P = 7;
 Q = 7;
 
@@ -58,7 +60,7 @@ Gamma = [0; 0];
 CHI = 0.5 * T1;
 M = 0.5 * T1 + 0.5 * T2;
 
-Nb = 20;
+Nb = 100;
 NB = 1 + 2  * Nb + round(sqrt(2) * Nb);
 beta = zeros(2, NB);
 
@@ -76,6 +78,43 @@ for i = 1 : NB
     end
 end
 
+energy_band = zeros(P*Q, NB);
+
 for i = 1 : NB
     
+    bx = beta(1, i);
+    by = beta(2, i);
+    
+    p = (-floor(P/2):floor(P/2));
+    q = (-floor(Q/2):floor(Q/2));
+    
+    kx = bx - 2*pi/a * p;
+    ky = by - 2*pi/a * q;
+    
+    [ky, kx] = meshgrid(ky, kx);
+    KX = diag(sparse(kx(:)));
+    KY = diag(sparse(ky(:)));
+    
+    A = KX * URC^(-1) * KX + KY * URC^(-1) * KY;
+    B = ERC;
+    
+    % solve the general eigenvalue problem
+    [V, D] = eig(A, B);
+    energy_band(:, i) = sqrt(diag(D)) * a / 2 / pi;
 end
+
+
+fig = figure('Color', 'w', 'Position', [100 300 800 400]);
+
+for i = 1 : (P * Q)
+    scatter(1:NB, energy_band(i, :), 1);
+    hold on;
+end
+
+axis([1, NB, 0, 1]);
+ylabel('normalized frequency \omega a / 2 \pi c');
+set(gca,'xtick',[1 Nb+1 2*Nb+1 NB]);
+set(gca,'xticklabel',{'\Gamma','X','M','\Gamma'});
+xlabel('Bloch wave vector \beta');
+title('Energy band diagram of periodic round hole');
+saveas(fig, 'energyband.png');
