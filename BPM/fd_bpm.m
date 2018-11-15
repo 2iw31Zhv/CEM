@@ -55,7 +55,7 @@ wg_2_z1 = wg_2_z1 * k0;
 wg_2_x0 = wg_2_x0 * k0;
 wg_2_x1 = wg_2_x1 * k0;
 
-grid_per_devlen = 8;
+grid_per_devlen = 16;
 grid_per_wavelen = 20;
 
 dev_min_feature_len = min(abs(wg_1_x1 - wg_1_x0), abs(wg_2_x1 - wg_2_x0));
@@ -81,8 +81,8 @@ eps2 = n2 * n2;
 
 for i = 1 : Nz
     for j = 1 : Nx
-        z = z0 + res_z * i;
-        x = x0 + res_x * j;
+        z = z0 + res_z * (i - 0.5);
+        x = x0 + res_x * (j - 0.5);
         
         if (z >= wg_1_z0 && z <= wg_1_z1 && x <= wg_1_x1 && x >= wg_1_x0)
             Eps_yy(i, j) = eps1;
@@ -98,6 +98,27 @@ end
 
 
 % compute matrix derivative operators
+% use central difference
+% assume fully reflectance boundary
+Dx_h = (0.5 * diag(ones(Nx-1,1), 1) - 0.5 * diag(ones(Nx-1, 1), -1)) / res_x;
+Dx_e = (0.5 * diag(ones(Nx-1,1), 1) - 0.5 * diag(ones(Nx-1, 1), -1)) / res_x;
 
+
+% initialize field
+Ey = zeros(Nz, Nx);
+Hx = zeros(Nz, Nx);
+Hz = zeros(Nz, Nx);
 
 % compute source at the first plane
+tau = 0.1 * (wg_1_x1 - wg_1_x0);
+delay_pos =  0.5 * (wg_1_x1 + wg_1_x0);
+Generator = @(t)exp(-0.5 * ((t - delay_pos) ./ tau).^2);
+for i = 1 : Nx
+    x = x0 + res_x * (i - 0.5);
+    Ey(1, i) = Generator(x);
+end
+
+% iterate to update field
+for T = 1 : Nz
+    
+end
