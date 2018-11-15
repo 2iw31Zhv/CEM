@@ -1,0 +1,103 @@
+% =========================================================================
+% 2D Finite Difference Beam Propagation Method (E Mode)
+% =========================================================================
+% Author: Ziwei Zhu
+% Reference: http://emlab.utep.edu/ee5390cem.htm
+% =========================================================================
+close all;
+clear variables;
+
+% physical constant
+
+% waveguide inner index (SiO2)
+n1 = 1.46;
+% waveguide outer index (Si)
+n2 = 3.48;
+
+% effective propagation refractive index
+n_eff = 2.0;
+
+% wavelength of light in vacuum
+lambda0 = 1.55e-6; 
+
+k0 = 2 * pi / lambda0;
+
+% define simulation parameters
+x0 = 0.0;
+x1 = 2e-4;
+y0 = -1e-5;
+y1 = 1e-5;
+
+wg_1_x0 = 0.0;
+wg_1_x1 = 1.5e-4;
+wg_1_y0 = -5e-6;
+wg_1_y1 = -1e-6;
+
+wg_2_x0 = 5e-5;
+wg_2_x1 = 2e-4;
+wg_2_y0 = 1e-6;
+wg_2_y1 = 5e-6;
+
+
+% normalize w.r.t wave vector
+x0 = x0 * k0;
+x1 = x1 * k0;
+y0 = y0 * k0;
+y1 = y1 * k0;
+
+wg_1_x0 = wg_1_x0 * k0;
+wg_1_x1 = wg_1_x1 * k0;
+wg_1_y0 = wg_1_y0 * k0;
+wg_1_y1 = wg_1_y1 * k0;
+
+wg_2_x0 = wg_2_x0 * k0;
+wg_2_x1 = wg_2_x1 * k0;
+wg_2_y0 = wg_2_y0 * k0;
+wg_2_y1 = wg_2_y1 * k0;
+
+grid_per_devlen = 8;
+grid_per_wavelen = 20;
+
+dev_min_feature_len = min(abs(wg_1_y1 - wg_1_y0), abs(wg_2_y1 - wg_2_y0));
+
+res_wave = 2 * pi / grid_per_wavelen / n_eff;
+res_dev = dev_min_feature_len / grid_per_devlen;
+
+Ny = ceil((y1 - y0) / res_dev);
+Nz = ceil((x1 - x0) / res_wave);
+
+res_x = (x1 - x0) / Nz;
+res_z = (y1 - y0) / Nz;
+
+
+% build device on grid
+Mu_xx = ones(Nz, Ny);
+Mu_zz = ones(Nz, Ny);
+
+Eps_yy = ones(Nz, Ny);
+
+eps1 = n1 * n1;
+eps2 = n2 * n2;
+
+for i = 1 : Nz
+    for j = 1 : Ny
+        z = x0 + res_z * i;
+        y = y0 + res_y * j;
+        
+        if (z >= wg_1_x0 && z <= wg_1_x1 && y <= wg_1_y1 && y >= wg_1_y0)
+            Eps_yy(i, j) = eps1;
+        elseif (z >= wg_2_x0 && z <= wg_2_x1 && y <= wg_2_y1 && y >= wg_2_y0)
+            Eps_yy(i, j) = eps1;
+        else
+            Eps_yy(i, j) = eps2;
+        end
+    end
+end
+% TODO handle PML layers
+
+% compute matrix derivative operators
+Dx_h = zeros(Ny, Ny);
+Dx_e = zeros(Ny, Ny);
+
+
+% compute source at the first plane
