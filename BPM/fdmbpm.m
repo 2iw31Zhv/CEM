@@ -54,7 +54,9 @@ wg_2_x1 = wg_2_x1 * k0;
 
 
 % effective propagation refractive index
-n_eff = n1 * sqrt(1 - (2*pi)^2 / 4 / (wg_1_x1 - wg_1_x0)^2);
+% for the first mode:
+sin_theta = binary_search_sin_theta(n1, n2, abs(wg_1_x1 - wg_1_x0), 2*pi);
+n_eff = n1 * sqrt(1 - sin_theta^2);
 
 grid_per_devlen = 4;
 grid_per_wavelen = 10;
@@ -66,7 +68,7 @@ res_dev = dev_min_feature_len / grid_per_devlen;
 res = min(res_wave, res_dev);
 
 Nx = ceil((x1 - x0) / res);
-Nz = ceil((z1 - z0) / (0.2 *res));
+Nz = ceil((z1 - z0) / (0.1 *res));
 
 res_z = (z1 - z0) / Nz;
 res_x = (x1 - x0) / Nx;
@@ -97,12 +99,25 @@ end
 
 % handle PML layers
 sx = ones(Nz, Nx);
-NPML_x = 20;
-a
+NPML_x = 40;
+a_max = 3.0;
+PML_power = 3;
+eta0 = 376.73;
+
 for i = 1 : NPML_x
     nx = NPML_x - i + 1;
-    sx(:, i) = (1 + 
+    sx(:, i) = (1 + a_max * (nx / NPML_x)^PML_power)...
+        * (1 + 1j * eta0 * (sin(pi * nx / 2 / NPML_x))^2);
 end
+
+for i = (Nx - NPML_x+1) : Nx
+    nx = NPML_x - (Nx - i);
+    sx(:, i) = (1 + a_max * (nx / NPML_x)^PML_power)...
+        * (1 + 1j * eta0 * (sin(pi * nx / 2 / NPML_x))^2);
+end
+Eps_yy = Eps_yy .* sx;
+Mu_xx = Mu_xx ./ sx;
+Mu_zz = Mu_zz .* sx;
 
 % compute matrix derivative operators
 % use central difference
@@ -110,11 +125,13 @@ end
 
 % backward difference
 Dx_e = (diag(ones(Nx,1)) - diag(ones(Nx-1, 1), -1)) / res_x;
-Dx_e(1, Nx) = -1 / res_x;
+% this is for the periodic boundary condition
+% Dx_e(1, Nx) = -1 / res_x;
 
 % forward difference
 Dx_h = (-diag(ones(Nx,1)) + diag(ones(Nx-1, 1), 1)) / res_x;
-Dx_h(Nx, 1) = 1 / res_x;
+% this is for the periodic boundary condition
+% Dx_h(Nx, 1) = 1 / res_x;
 
 % initialize field
 Ey = zeros(Nz, Nx);
@@ -131,6 +148,7 @@ for i = 1 : Nx
     %end
 end
 
+fig = figure('Color', 'w', 'Position', [300 300 500 400]);
 % iterate to update field
 for i = 1 : Nz-1
     % extract and diagonalize constitutive tensor
@@ -164,9 +182,16 @@ for i = 1 : Nz-1
     
     if (mod(i, 20) == 0)
         clear gca;
-        imagesc(z_array, x_array, real(Ey' .* phase));
+        
+        h(1) = subplot(1, 2, 1);
+        plot(x_array, Ey(1, :));
+        camroll(-90);
+        axis tight;
+        
+        h(2) = subplot(1, 2, 2);
+        imagesc(z_array, x_array, abs(Ey)');
         axis equal tight;
-        caxis([-1, 1]);
+        caxis([0, 1]);
         hold on;
         plot([wg_1_z0 wg_1_z0], [wg_1_x0 wg_1_x1], '-k');
         hold on;
@@ -183,6 +208,12 @@ for i = 1 : Nz-1
         plot([wg_2_z1 wg_2_z1], [wg_2_x0 wg_2_x1], '-k');
         hold on;
         plot([wg_2_z0 wg_2_z1], [wg_2_x1 wg_2_x1], '-k');
+        
+        pos0 = get(h(1), 'Position');
+        pos = get(h(2), 'Position');
+        set(h(1), 'Position', [0.1, 0.15, 0.1, 0.75]);
+        set(h(2), 'Position',[0.2, 0.15, 0.75, 0.75]);
+        
         pause(0.01);
     end
 end
