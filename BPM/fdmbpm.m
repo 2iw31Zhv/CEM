@@ -26,7 +26,7 @@ x0 = -1e-5;
 x1 = 1e-5;
 
 wg_1_z0 = 0.0;
-wg_1_z1 = 2e-5;
+wg_1_z1 = 1.5e-5;
 wg_1_x0 = -5e-6;
 wg_1_x1 = -1e-6;
 
@@ -68,7 +68,7 @@ res_dev = dev_min_feature_len / grid_per_devlen;
 res = min(res_wave, res_dev);
 
 Nx = ceil((x1 - x0) / res);
-Nz = ceil((z1 - z0) / (0.1 *res));
+Nz = ceil((z1 - z0) / res);
 
 res_z = (z1 - z0) / Nz;
 res_x = (x1 - x0) / Nx;
@@ -115,6 +115,7 @@ for i = (Nx - NPML_x+1) : Nx
     sx(:, i) = (1 + a_max * (nx / NPML_x)^PML_power)...
         * (1 + 1j * eta0 * (sin(pi * nx / 2 / NPML_x))^2);
 end
+
 Eps_yy = Eps_yy .* sx;
 Mu_xx = Mu_xx ./ sx;
 Mu_zz = Mu_zz .* sx;
@@ -159,7 +160,7 @@ for i = 1 : Nz-1
     inverse_mu_zz0 = diag(Mu_zz(i,:).^(-1));
     
     A0 = mu_xx0 * Dx_h * inverse_mu_zz0 * Dx_e + mu_xx0 * eps_yy0...
-        - n_eff^2 * ones(Nx, Nx);
+        - n_eff^2 * eye(Nx, Nx);
     
     mu_xx1 = diag(Mu_xx(i+1, :));
     mu_zz1 = diag(Mu_zz(i+1, :));
@@ -168,10 +169,10 @@ for i = 1 : Nz-1
     inverse_mu_zz1 = diag(Mu_zz(i+1,:).^(-1));
     
     A1 = mu_xx1 * Dx_h * inverse_mu_zz1 * Dx_e + mu_xx1 * eps_yy1...
-        - n_eff^2 * ones(Nx, Nx);  
+        - n_eff^2 * eye(Nx, Nx);  
     
-    left_hand_mat = ones(Nx, Nx) - 1j * res_z / 4.0 / n_eff * A1;
-    rhs = (ones(Nx, Nx) + 1j * res_z / 4.0 / n_eff * A0) * (Ey(i, :)');
+    left_hand_mat = eye(Nx, Nx) - 1j * res_z / 4.0 / n_eff * A1;
+    rhs = (eye(Nx, Nx) + 1j * res_z / 4.0 / n_eff * A0) * (Ey(i, :)');
     
     Ey(i+1, :) = (left_hand_mat \ rhs)';
     
@@ -180,7 +181,7 @@ for i = 1 : Nz-1
     [Z, X] = meshgrid(z_array, x_array);
     phase = exp(1i * n_eff * Z);
     
-    if (mod(i, 20) == 0)
+    if (mod(i, 20) == 0 || i == Nz - 1)
         clear gca;
         
         h(1) = subplot(1, 2, 1);
