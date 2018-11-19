@@ -25,43 +25,23 @@ z1 = 2e-5;
 x0 = -1e-5;
 x1 = 1e-5;
 
-wg_1_z0 = 0.0;
-wg_1_z1 = 1.5e-5;
-wg_1_x0 = -5e-6;
-wg_1_x1 = -1e-6;
-
-wg_2_z0 = 5e-6;
-wg_2_z1 = 2e-5;
-wg_2_x0 = 1e-6;
-wg_2_x1 = 5e-6;
-
-
 % normalize w.r.t wave vector
 z0 = z0 * k0;
 z1 = z1 * k0;
 x0 = x0 * k0;
 x1 = x1 * k0;
 
-wg_1_z0 = wg_1_z0 * k0;
-wg_1_z1 = wg_1_z1 * k0;
-wg_1_x0 = wg_1_x0 * k0;
-wg_1_x1 = wg_1_x1 * k0;
-
-wg_2_z0 = wg_2_z0 * k0;
-wg_2_z1 = wg_2_z1 * k0;
-wg_2_x0 = wg_2_x0 * k0;
-wg_2_x1 = wg_2_x1 * k0;
-
+width_wg = 1.95e-6 * k0;
 
 % effective propagation refractive index
 % for the first mode:
-sin_theta = binary_search_sin_theta(n1, n2, abs(wg_1_x1 - wg_1_x0), 2*pi);
+sin_theta = binary_search_sin_theta(n1, n2, width_wg, 2*pi);
 n_eff = n1 * sqrt(1 - sin_theta^2);
 
 grid_per_devlen = 4;
 grid_per_wavelen = 10;
 
-dev_min_feature_len = min(abs(wg_1_x1 - wg_1_x0), abs(wg_2_x1 - wg_2_x0));
+dev_min_feature_len = width_wg;
 
 res_wave = 2 * pi / grid_per_wavelen / n_eff;
 res_dev = dev_min_feature_len / grid_per_devlen;
@@ -77,25 +57,7 @@ res_x = (x1 - x0) / Nx;
 Mu_xx = ones(Nz, Nx);
 Mu_zz = ones(Nz, Nx);
 
-Eps_yy = ones(Nz, Nx);
-
-eps1 = n1 * n1;
-eps2 = n2 * n2;
-
-for i = 1 : Nz
-    for j = 1 : Nx
-        z = z0 + res_z * (i - 0.5);
-        x = x0 + res_x * (j - 0.5);
-        
-        if (z >= wg_1_z0 && z <= wg_1_z1 && x <= wg_1_x1 && x >= wg_1_x0)
-            Eps_yy(i, j) = eps1;
-        elseif (z >= wg_2_z0 && z <= wg_2_z1 && x <= wg_2_x1 && x >= wg_2_x0)
-            Eps_yy(i, j) = eps1;
-        else
-            Eps_yy(i, j) = eps2;
-        end
-    end
-end
+load Eps_yy.mat
 
 % handle PML layers
 sx = ones(Nz, Nx);
@@ -138,8 +100,8 @@ Dx_h = (-diag(ones(Nx,1)) + diag(ones(Nx-1, 1), 1)) / res_x;
 Ey = zeros(Nz, Nx);
 
 % compute source at the first plane
-tau = 0.5 * (wg_1_x1 - wg_1_x0);
-delay_pos =  0.5 * (wg_1_x1 + wg_1_x0);
+tau = 0.8 * width_wg;
+delay_pos =  0.0;
 Generator = @(t)exp(-0.5 * ((t - delay_pos) ./ tau).^2);
 
 for i = 1 : Nx
@@ -194,21 +156,13 @@ for i = 1 : Nz-1
         axis equal tight;
         caxis([0, 1]);
         hold on;
-        plot([wg_1_z0 wg_1_z0], [wg_1_x0 wg_1_x1], '-k');
+        plot(wg_1_z0 * k0, wg_1_x0 * k0, '-k');
         hold on;
-        plot([wg_1_z0 wg_1_z1], [wg_1_x0 wg_1_x0], '-k');
+        plot(wg_1_z1 * k0, wg_1_x1 * k0, '-k');
         hold on;
-        plot([wg_1_z1 wg_1_z1], [wg_1_x0 wg_1_x1], '-k');
+        plot(wg_2_z0 * k0, wg_2_x0 * k0, '-k');
         hold on;
-        plot([wg_1_z0 wg_1_z1], [wg_1_x1 wg_1_x1], '-k');
-        hold on;
-        plot([wg_2_z0 wg_2_z0], [wg_2_x0 wg_2_x1], '-k');
-        hold on;
-        plot([wg_2_z0 wg_2_z1], [wg_2_x0 wg_2_x0], '-k');
-        hold on;
-        plot([wg_2_z1 wg_2_z1], [wg_2_x0 wg_2_x1], '-k');
-        hold on;
-        plot([wg_2_z0 wg_2_z1], [wg_2_x1 wg_2_x1], '-k');
+        plot(wg_2_z1 * k0, wg_2_x1 * k0, '-k');
         
         pos0 = get(h(1), 'Position');
         pos = get(h(2), 'Position');
