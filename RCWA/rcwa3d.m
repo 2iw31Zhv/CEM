@@ -29,8 +29,18 @@ d2 = 0.30; % cm
 w = 0.8 * Lx;
 
 
-% physics of the field
+% define source
 lambda0 = 2.0; % cm
+k0  = 2.0 * pi / lambda0; % cm^-1
+theta_src = pi / 4.0; % arc
+phi_src = pi / 4.0; % arc
+
+
+n_inc = sqrt(eps_ref / mu_ref);
+k_inc = n_inc * [ sin(theta_src) * cos(phi_src);
+    sin(theta_src) * sin(phi_src);
+    cos(theta_src)];
+
 
 % grid parameters
 Ny = 16;
@@ -71,7 +81,14 @@ UR(:, :, 2) = mu_r;
 
 % number of harmonics
 P = ceil(7 * Lx / lambda0);
+if mod(P, 2) == 0
+    P = P + 1; 
+end
+    
 Q = ceil(7 * Ly / lambda0);
+if mod(Q, 2) == 0
+    Q = Q + 1;
+end
 
 ERC = zeros(P*Q, P*Q, 2);
 URC = zeros(P*Q, P*Q, 2);
@@ -87,8 +104,27 @@ URC(:, :, 2) = convmat(UR(:, :, 2), P, Q);
 % Main RCWA routines
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% setup wave number matrices
+wavenumber = struct;
+wavenumber.M = floor(P / 2);
+wavenumber.N = floor(Q / 2);
+wavenumber.m = -wavenumber.M : wavenumber.M;
+wavenumber.n = -wavenumber.N : wavenumber.N;
 
+kxm = k_inc(1) - 2 * pi * wavenumber.m / k0 / Lx;
+kyn = k_inc(2) - 2 * pi * wavenumber.n / k0 / Ly;
 
+[Kyn, Kxm] = meshgrid(kyn, kxm);
+
+Kz_ref = -sqrt(mu_ref' * eps_ref' - Kxm.^2 - Kyn.^2)';
+Kz_trn = sqrt(mu_trn' * eps_trn' - Kxm.^2 - Kyn.^2)';
+
+KX = diag(sparse(Kxm(:)));
+KY = diag(sparse(Kyn(:)));
+KZ_ref = diag(sparse(Kz_ref(:)));
+KZ_trn = diag(sparse(Kz_trn(:)));
+
+% compute eigen modes of free space
 
 
 
