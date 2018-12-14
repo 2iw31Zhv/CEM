@@ -13,8 +13,6 @@ eps_r = 6.0;
 mu_trn = 1.0;
 eps_trn = 9.0;
 
-% define geometries
-
 % simulation region
 Cx = 0.0; % cm
 Cy = 0.0; % cm
@@ -29,7 +27,6 @@ d(2) = 0.30; % cm
 % hole size of layer 1
 w = 0.8 * Lx;
 
-
 % define source
 lambda0 = 2.0; % cm
 k0  = 2.0 * pi / lambda0; % cm^-1
@@ -38,7 +35,7 @@ phi_src = pi / 4.0; % arc
 
 
 n_inc = sqrt(eps_ref / mu_ref);
-k_inc = n_inc * [ sin(theta_src) * cos(phi_src);
+k_inc = n_inc * [sin(theta_src) * cos(phi_src);
     sin(theta_src) * sin(phi_src);
     cos(theta_src)];
 
@@ -114,8 +111,8 @@ kyn = k_inc(2) - 2 * pi * wavenumber.n / k0 / Ly;
 
 [Kyn, Kxm] = meshgrid(kyn, kxm);
 
-Kz_ref = -sqrt(mu_ref' * eps_ref' - Kxm.^2 - Kyn.^2)';
-Kz_trn = sqrt(mu_trn' * eps_trn' - Kxm.^2 - Kyn.^2)';
+Kz_ref = -conj(sqrt(conj(mu_ref) * conj(eps_ref) - Kxm.^2 - Kyn.^2));
+Kz_trn = conj(sqrt(conj(mu_trn) * conj(eps_trn) - Kxm.^2 - Kyn.^2));
 
 KX = diag(sparse(Kxm(:)));
 KY = diag(sparse(Kyn(:)));
@@ -128,7 +125,7 @@ KZ_trn = diag(sparse(Kz_trn(:)));
 W0 = sparse(eye(2*M*N));
 Q0 = [KX * KY, eye(M*N) - KX * KX;
     KY * KY - eye(M*N), - KX * KY];
-Kz0 = sqrt(1.0 - Kxm.^2 - Kyn.^2)';
+Kz0 = conj(sqrt(1.0 - Kxm.^2 - Kyn.^2));
 KZ0 = diag(sparse(Kz0(:)));
 LAM0 = [1j * KZ0, zeros(M*N);
     zeros(M*N), 1j * KZ0];
@@ -152,6 +149,12 @@ for i = 1 : 2
         KY / ERi * KY - URi, -KY / ERi * KX];
     Qi = [KX / URi * KY, ERi - KX / URi * KX;
         KY / URi * KY - ERi, -KY / URi * KX];
+    
+    % homogeneous layer code
+%     Pi = full(1.0 / eps_r * [KX * KY, mu_r * eps_r * eye(M*N) - KX * KX;
+%         KY * KY - mu_r * eps_r * eye(M*N), -KY * KX]);
+%     Qi = eps_r / mu_r * Pi;
+    
     OMEGA2 = Pi * Qi;
     
     [Wi, LAMi] = eig(OMEGA2);
@@ -161,12 +164,15 @@ for i = 1 : 2
     % calculate layer scatter matrix
     Ai0 = Wi \ W0 + Vi \ V0;
     Bi0 = Wi \ W0 - Vi \ V0;
-    Xi = exp(-LAMi * k0 * d(i));
+    
+    % should use expm instead of exp because exp(A) returns 1 for 0 entries
+    % in A
+    Xi = expm(-LAMi * k0 * d(i));
     
     
     S = struct;
     S.S11 = (Ai0 - Xi * Bi0 / Ai0 * Xi * Bi0)...
-        \ (Xi * (Bi0 / Ai0) * Xi * Ai0 - Bi0);
+        \ (Xi * Bi0 / Ai0 * Xi * Ai0 - Bi0);
     S.S12 = (Ai0 - Xi * Bi0 / Ai0 * Xi * Bi0)...
         \ Xi * (Ai0 - Bi0 / Ai0 * Bi0);
     S.S21 = S.S12;
@@ -253,14 +259,11 @@ tz = - KZ_trn \ (KX * tx + KY * ty);
 R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
 R = real(-KZ_ref / mu_ref) / real(k_inc(3) / mu_ref) * R2;
 R = reshape(R, M, N);
-
 REF = sum(R(:));
-
 
 T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
 T = real(KZ_trn / mu_trn) / real(k_inc(3) / mu_ref) * T2;
 T = reshape(T, M, N);
-
 TRN = sum(T(:));
 
 % verify conservation
