@@ -216,12 +216,53 @@ SG = redheffer_star_product_expand2(SR, SG);
 SG = redheffer_star_product_expand2(SG, ST);
 
 % compute source
-imagesc(abs(SG.S12));
+source = struct;
+
+source.delta = zeros(M*N, 1);
+source.delta(floor(N/2) * M + floor(M/2) + 1) = 1.0;
+
+source.n = [0; 0; 1];
+% for normal incidence
+source.vTE = [0; 1; 0];
+source.vTM = cross(k_inc, source.vTE);
+source.vTM = source.vTM / norm(source.vTM);
+
+source.theta = pi / 6.0;
+source.P = cos(source.theta) * source.vTM + sin(source.theta) * source.vTE;
+
+source.eT = [source.P(1) * source.delta;
+    source.P(2) * source.delta];
 
 % solve for reflected & transmitted field
+c_src = Wref \ source.eT;
+c_ref = SG.S11 * c_src;
+c_trn = SG.S21 * c_src;
+
+eT_ref = Wref * c_ref;
+eT_trn = Wtrn * c_trn;
+
+rx = eT_ref(1:M*N);
+ry = eT_ref((M*N+1):2*M*N);
+rz = - KZ_ref \ (KX * rx + KY * ry);
+
+tx = eT_trn(1:M*N);
+ty = eT_trn((M*N+1):2*M*N);
+tz = - KZ_trn \ (KX * tx + KY * ty);
 
 % calculate diffraction efficiencies
+R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
+R = real(-KZ_ref / mu_ref) / real(k_inc(3) / mu_ref) * R2;
+R = reshape(R, M, N);
+
+REF = sum(R(:));
+
+
+T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
+T = real(KZ_trn / mu_trn) / real(k_inc(3) / mu_ref) * T2;
+T = reshape(T, M, N);
+
+TRN = sum(T(:));
 
 % verify conservation
 
-
+REF + TRN
