@@ -1,9 +1,12 @@
+function [REF, TRN, SUM] = rcwa3d(lambda0)
+
 % =========================================================================
 % Rigorous Coupled Wave Analysis
 % =========================================================================
 % Author: Ziwei Zhu
 % Reference: http://emlab.utep.edu/ee5390cem.htm
 % =========================================================================
+
 
 % define materials
 mu_ref = 1.0;
@@ -28,7 +31,7 @@ d(2) = 0.30; % cm
 w = 0.8 * Lx;
 
 % define source
-lambda0 = 2.0; % cm
+%lambda0 = 2.0; % cm
 k0  = 2.0 * pi / lambda0; % cm^-1
 theta_src = 0; % arc
 phi_src = pi / 4.0; % arc
@@ -267,5 +270,33 @@ T = reshape(T, M, N);
 TRN = sum(T(:));
 
 % verify conservation
+fprintf('total energy conservation: %.3f\n', REF + TRN);
 
-REF + TRN
+SUM = REF + TRN;
+
+% code for drawing scatter matrix and saving images
+
+% fig1 = figure('Color', 'w');
+% imagesc(abs(SG.S11));
+% colorbar;
+% 
+% fig2 = figure('Color', 'w');
+% imagesc(abs(SG.S12));
+% colorbar;
+% 
+% fig3 = figure('Color', 'w');
+% imagesc(abs(SG.S21));
+% colorbar;
+% 
+% fig4 = figure('Color', 'w');
+% imagesc(abs(SG.S22));
+% colorbar;
+% 
+% saveas(fig1, 'images/S11.png');
+% saveas(fig2, 'images/S12.png');
+% saveas(fig3, 'images/S21.png');
+% saveas(fig4, 'images/S22.png');
+end
+
+
+
