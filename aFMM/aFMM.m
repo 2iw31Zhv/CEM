@@ -1,10 +1,9 @@
-% function [REF, TRN, SUM] = aFMM(freq)
+%function [REF, TRN, SUM] = aFMM(freq)
 % =========================================================================
 % Aperiodic Fourier Modal Method
 % =========================================================================
 % Author: Ziwei Zhu
 % =========================================================================
-% TODO: add PML
 
 close all;
 clear variables;
@@ -29,7 +28,7 @@ d(2) = 0.50;
 d(3) = 0.50;
 
 % define source
-freq = 5.001; % 2 * pi * c / a
+freq = 2.021; % 2 * pi * c / a
 lambda0 = a / (2 * pi * freq); % cm
 k0  = 2.0 * pi / lambda0; % cm^-1
 
@@ -113,6 +112,51 @@ kyn = 0.0 - 2 * pi * wavenumber.n / k0 / Ly;
 KX = diag(Kxm(:));
 KY = diag(Kyn(:));
 
+% multiply PML metric before KX and KY
+c_PML = 1.0;
+Dx = 0.8 * Lx;
+Dy = 0.8 * Ly;
+
+px = pml_coefficients(c_PML, Lx, Dx, 2 * M);
+py = pml_coefficients(c_PML, Ly, Dy, 2 * N);
+
+% build the corresponding convolution matrix
+PX = zeros(M*N);
+m0 = 1 + floor(M);
+m = (-floor(M/2):floor(M/2));
+PY = zeros(M*N);
+n0 = 1 + floor(N);
+n = (-floor(N/2):floor(N/2));
+
+for nrow = 1 : N
+    for mrow = 1 : M
+        row = (nrow - 1) * M + mrow;
+        for ncol = 1 : N
+            for mcol = 1 : M
+                col = (ncol - 1) * M + mcol;
+                mfft = m(mrow) - m(mcol);
+                PX(row, col) = px(m0 + mfft);
+            end
+        end
+    end
+end
+
+for nrow = 1 : N
+    for mrow = 1 : M
+        row = (nrow - 1) * M + mrow;
+        for ncol = 1 : N
+            for mcol = 1 : M
+                col = (ncol - 1) * M + mcol;
+                nfft = n(nrow) - n(ncol);
+                PY(row, col) = py(n0 + nfft);
+            end
+        end
+    end
+end
+
+KX = PX * KX;
+KY = PY * KY;
+
 % compute eigen modes of free space (analyze gap medium)
 % calculate W0, V0
 
@@ -181,12 +225,12 @@ OMEGAref = Pref * Qref;
 [Wref, LAMref] = eig(OMEGAref);
 LAMref = sqrt_rectify(LAMref);
 
-Kz_ref = 1i * diag(LAMref);
-Kz_ref = Kz_ref(1:M*N);
-
-Kz_inc = -Kz_ref;
-KZ_inc = diag(Kz_inc(:));
-KZ_ref = diag(Kz_ref(:));
+% Kz_ref = 1i * diag(LAMref);
+% Kz_ref = Kz_ref(1:M*N);
+% 
+% Kz_inc = -Kz_ref;
+% KZ_inc = diag(Kz_inc(:));
+% KZ_ref = diag(Kz_ref(:));
 
 Vref = Qref * Wref / LAMref;   
 
@@ -209,10 +253,10 @@ OMEGAtrn = Ptrn * Qtrn;
 [Wtrn, LAMtrn] = eig(OMEGAtrn);
 LAMtrn = sqrt_rectify(LAMtrn);
 
-Kz_trn = -1i * diag(LAMtrn);
-Kz_trn = Kz_trn(1:M*N);
-
-KZ_trn = diag(Kz_trn(:));
+% Kz_trn = -1i * diag(LAMtrn);
+% Kz_trn = Kz_trn(1:M*N);
+% 
+% KZ_trn = diag(Kz_trn(:));
 
 Vtrn = Qtrn * Wtrn / LAMtrn; 
 
@@ -230,18 +274,55 @@ SG = redheffer_star_product(SG, ST);
 
 % solve for reflected & transmitted field
 
-% excite from one polarize and for the fundamental mode
+% excite from one polariz and for the fundamental mode
 c_src = zeros(2*M*N, 1);
-[~, center_mode_index] = max(abs(real(Kz_inc)));
+%[~, center_mode_index] = max(abs(imag(diag(LAMref))));
+center_mode_index = 58;
+
+% TEST
+% for center_mode_index = 1 : 2*M*N
+%     c_src = zeros(2*M*N, 1);
+%     c_src(center_mode_index) = 1.0;
+%     eT_src = Wref * c_src;
+%     sx = eT_src(1:M*N);
+%     sy = eT_src((M*N+1):2*M*N);
+%     fig_temp1 = figure('Color', 'w');
+%     imagesc(reshape(abs(sx), M, N));
+%     fig_temp2 = figure('Color', 'w');
+%     imagesc(reshape(abs(sy), M, N));
+%     name1 = sprintf('modes_PML/sx_mode_%d.png', center_mode_index);
+%     name2 = sprintf('modes_PML/sy_mode_%d.png', center_mode_index);
+%     saveas(fig_temp1, name1);
+%     saveas(fig_temp2, name2);
+%     close all;
+% end
+
 c_src(center_mode_index) = 1.0;
-k_inc = [0; 0; Kz_inc(center_mode_index)];
 
 c_ref = SG.S11 * c_src;
 c_trn = SG.S21 * c_src;
 
+% here we only consider the fundamental mode
+% c_ref(1:56) = 0.0;
+% c_ref(59:2*M*N) = 0.0;
+% c_trn(1:56) = 0.0;
+% c_trn(59:2*M*N) = 0.0;
+
+% each column of Wref represents one mode, with one propagating constant
 eT_src = Wref * c_src;
 eT_ref = Wref * c_ref;
 eT_trn = Wtrn * c_trn;
+
+% TODO: evaluate KZ_inc, KZ_ref, KZ_trn
+% we assume the wave are confined in the waveguide
+% this is true when we have a small amount of harmonics
+Kz_ref = -conj(sqrt(mu_r * eps_r - Kxm.^2 - Kyn.^2));
+Kz_trn = -Kz_ref;
+Kz_inc = Kz_trn;
+
+KZ_ref = diag(Kz_ref(:));
+KZ_trn = diag(Kz_trn(:));
+KZ_inc = diag(Kz_inc(:));
 
 sx = eT_src(1:M*N);
 sy = eT_src((M*N+1):2*M*N);
@@ -256,23 +337,42 @@ ty = eT_trn((M*N+1):2*M*N);
 tz = - KZ_trn \ (KX * tx + KY * ty);
 
 S2 = abs(sx).^2 + abs(sy).^2 + abs(sz).^2;
-S2 = real(KZ_inc / mu0) / real(k_inc(3) / mu0) * S2;
+S2 = real(KZ_inc / mu0) * S2;
 Senergy = reshape(S2, M, N);
 SRC = sum(Senergy(:));
 
 % calculate diffraction efficiencies
 R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
-R = real(-KZ_ref / mu0) / real(k_inc(3) / mu0) * R2;
+R = real(-KZ_ref / mu0)  * R2;
 R = reshape(R, M, N);
 REF = sum(R(:)) / SRC;
 
 T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
-T = real(KZ_trn / mu0) / real(k_inc(3) / mu0) * T2;
+T = real(KZ_trn / mu0) * T2;
 T = reshape(T, M, N);
 TRN = sum(T(:)) / SRC;
 
 SUM = REF + TRN;
-k_inc(3)
 
 % verify conservation
 fprintf('REF: %.3f, TRN: %.3f, SUM: %.3f\n', REF, TRN, SUM);
+
+%end
+
+% fig1 = figure('Color', 'w');
+% imagesc(Senergy);
+% colorbar;
+% axis equal tight;
+% saveas(fig1, 'source.png');
+% 
+% fig2 = figure('Color', 'w');
+% imagesc(R);
+% colorbar;
+% axis equal tight;
+% saveas(fig2, 'reflectance.png');
+% 
+% fig3 = figure('Color', 'w');
+% imagesc(T);
+% colorbar;
+% axis equal tight;
+% saveas(fig3, 'Transmittance.png');

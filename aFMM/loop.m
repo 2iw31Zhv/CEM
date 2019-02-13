@@ -1,7 +1,7 @@
 close all;
 clear variables;
 
-freq = linspace(0.01, 5.01, 500);
+freq = linspace(0.01, 5.01, 100);
 [~, n] = size(freq);
 
 REF = zeros(n, 1);
