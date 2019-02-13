@@ -1,4 +1,3 @@
-%function [REF, TRN, SUM] = aFMM(freq)
 % =========================================================================
 % Aperiodic Fourier Modal Method
 % =========================================================================
@@ -28,10 +27,9 @@ d(2) = 0.50;
 d(3) = 0.50;
 
 % define source
-freq = 2.021; % 2 * pi * c / a
+freq = 5.001; % 2 * pi * c / a
 lambda0 = a / (2 * pi * freq); % cm
 k0  = 2.0 * pi / lambda0; % cm^-1
-
 
 % number of harmonics
 % M = ceil(7 * Lx / lambda0);
@@ -58,13 +56,13 @@ dy = Ly / Ny;
 % build the geometry of the device
 ER = ones(Nx, Ny, 3);
 UR = ones(Nx, Ny, 3);
-% build device for layer 1
+%build device for layer 1
 ER(:, :, 1) = eps0;
 UR(:, :, 1) = mu0;
-% build device for layer 2
+%build device for layer 2
 ER(:, :, 2) = eps0;
 UR(:, :, 2) = mu0;
-% build device for layer 3
+%build device for layer 3
 ER(:, :, 3) = eps0;
 UR(:, :, 3) = mu0;
 
@@ -72,7 +70,8 @@ UR(:, :, 3) = mu0;
 %     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
 % [ER(:, :, 2), UR_ref(:, :, 2)] =...
 %     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
-
+% [ER(:, :, 3), UR_ref(:, :, 3)] =...
+%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
 
 ERC(:, :, 1) = convmat(ER(:, :, 1), M, N);
 ERC(:, :, 2) = convmat(ER(:, :, 2), M, N);
@@ -114,50 +113,17 @@ KY = diag(Kyn(:));
 
 % multiply PML metric before KX and KY
 c_PML = 1.0;
-Dx = 0.8 * Lx;
-Dy = 0.8 * Ly;
+Dx = 0.9 * Lx;
+Dy = 0.9 * Ly;
 
-px = pml_coefficients(c_PML, Lx, Dx, 2 * M);
-py = pml_coefficients(c_PML, Ly, Dy, 2 * N);
-
-% build the corresponding convolution matrix
-PX = zeros(M*N);
-m0 = 1 + floor(M);
-m = (-floor(M/2):floor(M/2));
-PY = zeros(M*N);
-n0 = 1 + floor(N);
-n = (-floor(N/2):floor(N/2));
-
-for nrow = 1 : N
-    for mrow = 1 : M
-        row = (nrow - 1) * M + mrow;
-        for ncol = 1 : N
-            for mcol = 1 : M
-                col = (ncol - 1) * M + mcol;
-                mfft = m(mrow) - m(mcol);
-                PX(row, col) = px(m0 + mfft);
-            end
-        end
-    end
-end
-
-for nrow = 1 : N
-    for mrow = 1 : M
-        row = (nrow - 1) * M + mrow;
-        for ncol = 1 : N
-            for mcol = 1 : M
-                col = (ncol - 1) * M + mcol;
-                nfft = n(nrow) - n(ncol);
-                PY(row, col) = py(n0 + nfft);
-            end
-        end
-    end
-end
-
-KX = PX * KX;
-KY = PY * KY;
+px = pml_coefficients(c_PML, Lx, Dx, 2*M + 1);
+py = pml_coefficients(c_PML, Ly, Dy, 2*N + 1);
+PX = convmat_px(px, M, N);
+PY = convmat_py(py, M, N);
 
 % compute eigen modes of free space (analyze gap medium)
+% because the thickness of the free space layer is zero, there should be no
+% difference between the KX and KY with and without PML
 % calculate W0, V0
 
 W0 = eye(2*M*N);
@@ -169,6 +135,8 @@ LAM0 = [1j * KZ0, zeros(M*N);
     zeros(M*N), 1j * KZ0];
 V0 = Q0 / LAM0;
 
+KX = PX * KX;
+KY = PY * KY;
 
 % initialize global s matrix
 SG = struct;
@@ -201,8 +169,7 @@ for i = 1 : 3
     % should use expm instead of exp because exp(A) returns 1 for 0 entries
     % in A
     Xi = expm(-LAMi * k0 * d(i));
-    
-    
+   
     S = struct;
     S.S11 = (Ai0 - Xi * Bi0 / Ai0 * Xi * Bi0)...
         \ (Xi * Bi0 / Ai0 * Xi * Ai0 - Bi0);
@@ -224,14 +191,6 @@ Qref = [KX / URC_ref * KY, ERC_ref - KX / URC_ref * KX;
 OMEGAref = Pref * Qref;
 [Wref, LAMref] = eig(OMEGAref);
 LAMref = sqrt_rectify(LAMref);
-
-% Kz_ref = 1i * diag(LAMref);
-% Kz_ref = Kz_ref(1:M*N);
-% 
-% Kz_inc = -Kz_ref;
-% KZ_inc = diag(Kz_inc(:));
-% KZ_ref = diag(Kz_ref(:));
-
 Vref = Qref * Wref / LAMref;   
 
 Aref = W0 \ Wref + V0 \ Vref;
@@ -252,12 +211,6 @@ Qtrn = [KX / URC_trn * KY, ERC_trn - KX / URC_trn * KX;
 OMEGAtrn = Ptrn * Qtrn;
 [Wtrn, LAMtrn] = eig(OMEGAtrn);
 LAMtrn = sqrt_rectify(LAMtrn);
-
-% Kz_trn = -1i * diag(LAMtrn);
-% Kz_trn = Kz_trn(1:M*N);
-% 
-% KZ_trn = diag(Kz_trn(:));
-
 Vtrn = Qtrn * Wtrn / LAMtrn; 
 
 Atrn = W0 \ Wtrn + V0 \ Vtrn;
@@ -277,7 +230,7 @@ SG = redheffer_star_product(SG, ST);
 % excite from one polariz and for the fundamental mode
 c_src = zeros(2*M*N, 1);
 %[~, center_mode_index] = max(abs(imag(diag(LAMref))));
-center_mode_index = 58;
+center_mode_index = 73;
 
 % TEST
 % for center_mode_index = 1 : 2*M*N
@@ -303,10 +256,10 @@ c_ref = SG.S11 * c_src;
 c_trn = SG.S21 * c_src;
 
 % here we only consider the fundamental mode
-% c_ref(1:56) = 0.0;
-% c_ref(59:2*M*N) = 0.0;
-% c_trn(1:56) = 0.0;
-% c_trn(59:2*M*N) = 0.0;
+c_ref(1:center_mode_index - 1) = 0.0;
+c_ref(center_mode_index + 2:2*M*N) = 0.0;
+c_trn(1:center_mode_index - 1) = 0.0;
+c_trn(center_mode_index + 2:2*M*N) = 0.0;
 
 % each column of Wref represents one mode, with one propagating constant
 eT_src = Wref * c_src;
@@ -345,34 +298,34 @@ SRC = sum(Senergy(:));
 R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
 R = real(-KZ_ref / mu0)  * R2;
 R = reshape(R, M, N);
-REF = sum(R(:)) / SRC;
+REF = sum(R(:));
 
 T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
 T = real(KZ_trn / mu0) * T2;
 T = reshape(T, M, N);
-TRN = sum(T(:)) / SRC;
+TRN = sum(T(:));
 
 SUM = REF + TRN;
 
 % verify conservation
-fprintf('REF: %.3f, TRN: %.3f, SUM: %.3f\n', REF, TRN, SUM);
+fprintf('SRC: %.3f, REF: %.3f, TRN: %.3f, SUM: %.3f\n', SRC, REF, TRN, SUM);
 
 %end
 
-% fig1 = figure('Color', 'w');
-% imagesc(Senergy);
-% colorbar;
-% axis equal tight;
-% saveas(fig1, 'source.png');
-% 
-% fig2 = figure('Color', 'w');
-% imagesc(R);
-% colorbar;
-% axis equal tight;
-% saveas(fig2, 'reflectance.png');
-% 
-% fig3 = figure('Color', 'w');
-% imagesc(T);
-% colorbar;
-% axis equal tight;
-% saveas(fig3, 'Transmittance.png');
+fig1 = figure('Color', 'w');
+imagesc(Senergy);
+colorbar;
+axis equal tight;
+saveas(fig1, 'source.png');
+
+fig2 = figure('Color', 'w');
+imagesc(R);
+colorbar;
+axis equal tight;
+saveas(fig2, 'reflectance.png');
+
+fig3 = figure('Color', 'w');
+imagesc(T);
+colorbar;
+axis equal tight;
+saveas(fig3, 'Transmittance.png');
