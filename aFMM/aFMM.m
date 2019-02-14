@@ -7,6 +7,8 @@
 close all;
 clear variables;
 
+eta0 = -1i * 376.64;
+
 % define materials
 mu0 = 1.0;
 eps0 = 2.25;
@@ -27,19 +29,19 @@ d(2) = 0.50;
 d(3) = 0.50;
 
 % define source
-freq = 5.001; % 2 * pi * c / a
+freq = 3.001; % 2 * pi * c / a
 lambda0 = a / (2 * pi * freq); % cm
 k0  = 2.0 * pi / lambda0; % cm^-1
 
 % number of harmonics
 % M = ceil(7 * Lx / lambda0);
-M = 15;
+M = 11;
 if mod(M, 2) == 0
     M = M + 1; 
 end
     
 %N = ceil(7 * Ly / lambda0);
-N = 15;
+N = 11;
 if mod(N, 2) == 0
     N = N + 1;
 end
@@ -48,7 +50,7 @@ ERC = zeros(M*N, M*N, 3);
 URC = zeros(M*N, M*N, 3);
 
 % grid parameters
-Ny = 2 * max(M, N);
+Ny = 2 * max(M, N) + 1;
 Nx = ceil((Lx / Ly) * Ny);
 dx = Lx / Nx;
 dy = Ly / Ny;
@@ -56,22 +58,22 @@ dy = Ly / Ny;
 % build the geometry of the device
 ER = ones(Nx, Ny, 3);
 UR = ones(Nx, Ny, 3);
-%build device for layer 1
+% %build device for layer 1
 ER(:, :, 1) = eps0;
 UR(:, :, 1) = mu0;
-%build device for layer 2
+% %build device for layer 2
 ER(:, :, 2) = eps0;
 UR(:, :, 2) = mu0;
-%build device for layer 3
+% %build device for layer 3
 ER(:, :, 3) = eps0;
 UR(:, :, 3) = mu0;
 
-% [ER(:, :, 1), UR_ref(:, :, 1)] =...
-%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
-% [ER(:, :, 2), UR_ref(:, :, 2)] =...
-%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
-% [ER(:, :, 3), UR_ref(:, :, 3)] =...
-%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
+% [ER(:, :, 1), UR(:, :, 1)] =...
+%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.2, eps_r, eps0, mu_r, mu0);
+% [ER(:, :, 2), UR(:, :, 2)] =...
+%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.2, eps_r, eps0, mu_r, mu0);
+% [ER(:, :, 3), UR(:, :, 3)] =...
+%     set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.2, eps_r, eps0, mu_r, mu0);
 
 ERC(:, :, 1) = convmat(ER(:, :, 1), M, N);
 ERC(:, :, 2) = convmat(ER(:, :, 2), M, N);
@@ -82,9 +84,9 @@ URC(:, :, 3) = convmat(UR(:, :, 3), M, N);
 
 % build the geometry for waveguide excitation and acception
 [ER_ref, UR_ref] = ...
-    set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
+    set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.2, eps_r, eps0, mu_r, mu0);
 [ER_trn, UR_trn] = ...
-    set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.1, eps_r, eps0, mu_r, mu0);
+    set_circle_pattern(Nx, Ny, Cx, Cy, Lx, Ly, 0.2, eps_r, eps0, mu_r, mu0);
 
 ERC_ref(:, :, 1) = convmat(ER_ref(:, :, 1), M, N);
 ERC_trn(:, :, 1) = convmat(ER_trn(:, :, 1), M, N);
@@ -111,16 +113,6 @@ kyn = 0.0 - 2 * pi * wavenumber.n / k0 / Ly;
 KX = diag(Kxm(:));
 KY = diag(Kyn(:));
 
-% multiply PML metric before KX and KY
-c_PML = 1.0;
-Dx = 0.9 * Lx;
-Dy = 0.9 * Ly;
-
-px = pml_coefficients(c_PML, Lx, Dx, 2*M + 1);
-py = pml_coefficients(c_PML, Ly, Dy, 2*N + 1);
-PX = convmat_px(px, M, N);
-PY = convmat_py(py, M, N);
-
 % compute eigen modes of free space (analyze gap medium)
 % because the thickness of the free space layer is zero, there should be no
 % difference between the KX and KY with and without PML
@@ -135,8 +127,18 @@ LAM0 = [1j * KZ0, zeros(M*N);
     zeros(M*N), 1j * KZ0];
 V0 = Q0 / LAM0;
 
-KX = PX * KX;
-KY = PY * KY;
+% multiply PML metric before KX and KY
+c_PML = 1.0;
+Dx = 0.9 * Lx;
+Dy = 0.9 * Ly;
+
+px = pml_coefficients(c_PML, Lx, Dx, 2*M + 1);
+py = pml_coefficients(c_PML, Ly, Dy, 2*N + 1);
+
+% PX = convmat_px(px, M, N, Lx);
+% PY = convmat_py(py, M, N, Ly);
+PX = eye(M*N);
+PY = eye(M*N);
 
 % initialize global s matrix
 SG = struct;
@@ -151,10 +153,10 @@ for i = 1 : 3
     ERi = ERC(:, :, i);
     URi = URC(:, :, i);
     
-    Pi = [KX / ERi * KY, URi - KX / ERi * KX;
-        KY / ERi * KY - URi, -KY / ERi * KX];
-    Qi = [KX / URi * KY, ERi - KX / URi * KX;
-        KY / URi * KY - ERi, -KY / URi * KX];
+    Pi = [PX * KX / ERi * PY * KY, URi - PX * KX / ERi * PX * KX;
+        PY * KY / ERi * PY * KY - URi, -PY * KY / ERi * PX * KX];
+    Qi = [PX * KX / URi * PY * KY, ERi - PX * KX / URi * PX * KX;
+        PY * KY / URi * PY * KY - ERi, -PY * KY / URi * PX * KX];
     
     OMEGA2 = Pi * Qi;
     
@@ -184,10 +186,10 @@ for i = 1 : 3
 end
 
 % compute reflection side s matrix
-Pref = [KX / ERC_ref * KY, URC_ref - KX / ERC_ref * KX;
-    KY / ERC_ref * KY - URC_ref, -KY / ERC_ref * KX];
-Qref = [KX / URC_ref * KY, ERC_ref - KX / URC_ref * KX;
-    KY / URC_ref * KY - ERC_ref, -KY / URC_ref * KX];
+Pref = [PX * KX / ERC_ref * PY * KY, URC_ref - PX * KX / ERC_ref * PX * KX;
+    PY * KY / ERC_ref * PY * KY - URC_ref, -PY * KY / ERC_ref * PX * KX];
+Qref = [PX * KX / URC_ref * PY * KY, ERC_ref - PX * KX / URC_ref * PX * KX;
+    PY * KY / URC_ref * PY * KY - ERC_ref, -PY * KY / URC_ref * PX * KX];
 OMEGAref = Pref * Qref;
 [Wref, LAMref] = eig(OMEGAref);
 LAMref = sqrt_rectify(LAMref);
@@ -204,10 +206,10 @@ SR.S22 = Bref / Aref;
 SG = redheffer_star_product(SR, SG);
 
 % compute transmission side s matrix
-Ptrn = [KX / ERC_trn * KY, URC_trn - KX / ERC_trn * KX;
-    KY / ERC_trn * KY - URC_trn, -KY / ERC_trn * KX];
-Qtrn = [KX / URC_trn * KY, ERC_trn - KX / URC_trn * KX;
-    KY / URC_trn * KY - ERC_trn, -KY / URC_trn * KX];
+Ptrn = [PX * KX / ERC_trn * PY * KY, URC_trn - PX * KX / ERC_trn * PX * KX;
+    PY * KY / ERC_trn * PY * KY - URC_trn, -PY * KY / ERC_trn * PX * KX];
+Qtrn = [PX * KX / URC_trn * PY * KY, ERC_trn - PX * KX / URC_trn * PX * KX;
+    PY * KY / URC_trn * PY * KY - ERC_trn, -PY * KY / URC_trn * PX * KX];
 OMEGAtrn = Ptrn * Qtrn;
 [Wtrn, LAMtrn] = eig(OMEGAtrn);
 LAMtrn = sqrt_rectify(LAMtrn);
@@ -229,8 +231,8 @@ SG = redheffer_star_product(SG, ST);
 
 % excite from one polariz and for the fundamental mode
 c_src = zeros(2*M*N, 1);
-%[~, center_mode_index] = max(abs(imag(diag(LAMref))));
-center_mode_index = 73;
+[~, center_mode_index] = max(abs(imag(diag(LAMref))));
+% center_mode_index = 73;
 
 % TEST
 % for center_mode_index = 1 : 2*M*N
@@ -251,81 +253,108 @@ center_mode_index = 73;
 % end
 
 c_src(center_mode_index) = 1.0;
-
 c_ref = SG.S11 * c_src;
 c_trn = SG.S21 * c_src;
 
-% here we only consider the fundamental mode
-c_ref(1:center_mode_index - 1) = 0.0;
-c_ref(center_mode_index + 2:2*M*N) = 0.0;
-c_trn(1:center_mode_index - 1) = 0.0;
-c_trn(center_mode_index + 2:2*M*N) = 0.0;
-
-% each column of Wref represents one mode, with one propagating constant
 eT_src = Wref * c_src;
+ex_src = eT_src(1:M*N);
+ey_src = eT_src((M*N+1):2*M*N);
+hT_src = -eta0 * Vref * c_src;
+hx_src = hT_src(1:M*N);
+hy_src = hT_src((M*N+1):2*M*N);
+
 eT_ref = Wref * c_ref;
-eT_trn = Wtrn * c_trn;
+ex_ref = eT_ref(1:M*N);
+ey_ref = eT_ref((M*N+1):2*M*N);
+hT_ref = eta0 * Vref * c_ref;
+hx_ref = hT_ref(1:M*N);
+hy_ref = hT_ref((M*N+1):2*M*N);
 
-% TODO: evaluate KZ_inc, KZ_ref, KZ_trn
-% we assume the wave are confined in the waveguide
-% this is true when we have a small amount of harmonics
-Kz_ref = -conj(sqrt(mu_r * eps_r - Kxm.^2 - Kyn.^2));
-Kz_trn = -Kz_ref;
-Kz_inc = Kz_trn;
+REF = -0.25 * ((sum(ex_ref .* conj(hy_ref) - ey_ref .* conj(hx_ref)))...
+    + (sum(conj(ex_ref) .* hy_ref - conj(ey_ref) .* hx_ref))...
+    + (sum(conj(ex_src) .* hy_ref - conj(ey_src) .* hx_ref))...
+    + (sum(ex_ref .* conj(hy_src) - ey_ref .* conj(hx_src))));
 
-KZ_ref = diag(Kz_ref(:));
-KZ_trn = diag(Kz_trn(:));
-KZ_inc = diag(Kz_inc(:));
+SRC = Poynting_flux(c_src, Wref, Vref, eta0);
+TRN = Poynting_flux(c_trn, Wtrn, Vtrn, eta0);
 
-sx = eT_src(1:M*N);
-sy = eT_src((M*N+1):2*M*N);
-sz = - KZ_inc \ (KX * sx + KY * sy);
-
-rx = eT_ref(1:M*N);
-ry = eT_ref((M*N+1):2*M*N);
-rz = - KZ_ref \ (KX * rx + KY * ry);
-
-tx = eT_trn(1:M*N);
-ty = eT_trn((M*N+1):2*M*N);
-tz = - KZ_trn \ (KX * tx + KY * ty);
-
-S2 = abs(sx).^2 + abs(sy).^2 + abs(sz).^2;
-S2 = real(KZ_inc / mu0) * S2;
-Senergy = reshape(S2, M, N);
-SRC = sum(Senergy(:));
-
-% calculate diffraction efficiencies
-R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
-R = real(-KZ_ref / mu0)  * R2;
-R = reshape(R, M, N);
-REF = sum(R(:));
-
-T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
-T = real(KZ_trn / mu0) * T2;
-T = reshape(T, M, N);
-TRN = sum(T(:));
-
-SUM = REF + TRN;
+SUM = (-REF / SRC) + TRN / SRC;
 
 % verify conservation
-fprintf('SRC: %.3f, REF: %.3f, TRN: %.3f, SUM: %.3f\n', SRC, REF, TRN, SUM);
+fprintf('SRC: %.3e, REF: %.3e, TRN: %.3e, SUM: %.3e\n', SRC, REF, TRN, SUM);
+
+
+% here we only consider the fundamental mode
+% c_ref(1 : (center_mode_index - 1)) = 0.0;
+% c_ref((center_mode_index + 2) : 2*M*N) = 0.0;
+% c_trn(1 : (center_mode_index - 1)) = 0.0;
+% c_trn((center_mode_index + 2) : 2*M*N) = 0.0;
+
+% % each column of Wref represents one mode, with one propagating constant
+% eT_src = Wref * c_src;
+% eT_ref = Wref * c_ref;
+% eT_trn = Wtrn * c_trn;
+% 
+% % TODO: evaluate KZ_inc, KZ_ref, KZ_trn
+% % we assume the wave are confined in the waveguide
+% % this is true when we have a small amount of harmonics
+% Kz_ref = -conj(sqrt(mu_r * eps_r - Kxm.^2 - Kyn.^2));
+% Kz_trn = -Kz_ref;
+% Kz_inc = Kz_trn;
+% 
+% KZ_ref = diag(Kz_ref(:));
+% KZ_trn = diag(Kz_trn(:));
+% KZ_inc = diag(Kz_inc(:));
+% 
+% sx = eT_src(1:M*N);
+% sy = eT_src((M*N+1):2*M*N);
+% sz = - KZ_inc \ (KX * sx + KY * sy);
+% 
+% rx = eT_ref(1:M*N);
+% ry = eT_ref((M*N+1):2*M*N);
+% rz = - KZ_ref \ (KX * rx + KY * ry);
+% 
+% tx = eT_trn(1:M*N);
+% ty = eT_trn((M*N+1):2*M*N);
+% tz = - KZ_trn \ (KX * tx + KY * ty);
+% 
+% S2 = abs(sx).^2 + abs(sy).^2 + abs(sz).^2;
+% Senergy = real(KZ_inc / mu0) * S2;
+% Senergy = reshape(Senergy, M, N);
+% SRC = sum(Senergy(:));
+% 
+% % calculate diffraction efficiencies
+% R2 = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
+% R = real(-KZ_ref / mu0)  * R2;
+% R = reshape(R, M, N);
+% REF = sum(R(:)) / SRC;
+% 
+% T2 = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
+% T = real(KZ_trn / mu0) * T2;
+% T = reshape(T, M, N);
+% TRN = sum(T(:)) / SRC;
+% 
+% SUM = REF + TRN;
+% 
+% % verify conservation
+% fprintf('REF: %.3f, TRN: %.3f, SUM: %.3f\n', REF, TRN, SUM);
 
 %end
 
-fig1 = figure('Color', 'w');
-imagesc(Senergy);
-colorbar;
-axis equal tight;
-saveas(fig1, 'source.png');
-
-fig2 = figure('Color', 'w');
-imagesc(R);
-colorbar;
-axis equal tight;
-saveas(fig2, 'reflectance.png');
-
-fig3 = figure('Color', 'w');
-imagesc(T);
-colorbar;
-axis equal tight;
-saveas(fig3, 'Transmittance.png');
+% fig1 = figure('Color', 'w');
+% imagesc(Senergy);
+% colorbar;
+% axis equal tight;
+% saveas(fig1, 'source.png');
+% 
+% fig2 = figure('Color', 'w');
+% imagesc(R);
+% colorbar;
+% axis equal tight;
+% saveas(fig2, 'reflectance.png');
+% 
+% fig3 = figure('Color', 'w');
+% imagesc(T);
+% colorbar;
+% axis equal tight;
+% saveas(fig3, 'Transmittance.png');

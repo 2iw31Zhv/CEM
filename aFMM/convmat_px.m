@@ -1,4 +1,6 @@
-function PX = convmat_px(px, M, N)
+function PX = convmat_px(px, M, N, Lq)
+
+px = fftshift(fft(px)) / Lq;
 
 PX = zeros(M*N);
 m0 = 1 + M;

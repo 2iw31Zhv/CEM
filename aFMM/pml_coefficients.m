@@ -18,7 +18,6 @@ for i = 1 : M
     end
 end
 
-inv_d_T = 1 ./ (1 + 1i * d_beta_q);
-p = fftshift(fftn(inv_d_T)) / Lq;
+p = 1 ./ (1 + 1i * d_beta_q);
 
 end

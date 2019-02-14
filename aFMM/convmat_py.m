@@ -1,4 +1,6 @@
-function PY = convmat_py(py, M, N)
+function PY = convmat_py(py, M, N, Lq)
+
+py = fftshift(fft(py)) / Lq;
 
 PY = zeros(M*N);
 n0 = 1 + N;
